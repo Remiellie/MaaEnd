@@ -364,15 +364,6 @@
                                 "武陵石",
                                 "Wulingstone"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -388,15 +379,6 @@
                                 "燎石",
                                 "Igneosite"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -414,15 +396,6 @@
                                 "岩アンゲロス葉",
                                 "岩天使葉"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -440,15 +413,6 @@
                                 "侵蝕玉化葉",
                                 "受蝕玉化葉"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -466,15 +430,6 @@
                                 "星門茸",
                                 "星門菌"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -491,15 +446,6 @@
                                 "Bloodcap",
                                 "血潮茸"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -516,15 +462,6 @@
                                 "Umbronyx",
                                 "重闇石"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -541,15 +478,6 @@
                                 "Auronyx",
                                 "中闇石"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -567,15 +495,6 @@
                                 "軽闇石",
                                 "輕黯石"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -593,15 +512,6 @@
                                 "至晶鋭葉",
                                 "至晶多齒葉"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -619,15 +529,6 @@
                                 "純晶鋭葉",
                                 "純晶多齒葉"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -645,15 +546,6 @@
                                 "晶華鋭葉",
                                 "晶華多齒葉"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -671,15 +563,6 @@
                                 "深紅茸",
                                 "重紅柱狀菌"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -697,15 +580,6 @@
                                 "紅色茸",
                                 "中紅柱狀菌"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -723,15 +597,6 @@
                                 "薄紅茸",
                                 "輕紅柱狀菌"
                             ]
-                        },
-                        "GrowthChamberQuantitySeedValidator": {
-                            "recognition": {
-                                "param": {
-                                    "expected": [
-                                        ".*"
-                                    ]
-                                }
-                            }
                         }
                     },
                     "option": [
@@ -748,13 +613,11 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "GrowthChamberValidator": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "Or",
                                 "param": {
-                                    "any_of": [
-                                        "GrowthChamberQuantityCropValidator",
-                                        "GrowthChamberQuantitySeedValidator"
+                                    "expected": [
+                                        ".*"
                                     ]
                                 }
                             }
@@ -770,33 +633,13 @@
                 {
                     "name": "No",
                     "pipeline_override": {
-                        "GrowthChamberFindTarget": {
+                        "GrowthChamberValidator": {
                             "recognition": {
-                                "type": "And",
+                                "type": "Or",
                                 "param": {
-                                    "all_of": [
-                                        "GrowthChamberSelectTarget",
-                                        {
-                                            "recognition": {
-                                                "type": "OCR",
-                                                "param": {
-                                                    "roi": "GrowthChamberSelectTarget",
-                                                    "roi_offset": [
-                                                        31,
-                                                        41,
-                                                        23,
-                                                        0
-                                                    ],
-                                                    "expected": [
-                                                        "^[^0].*$"
-                                                    ],
-                                                    "only_rec": true,
-                                                    "order_by": "Vertical"
-                                                }
-                                            }
-                                        }
-                                    ],
-                                    "box_index": 0
+                                    "any_of": [
+                                        "GrowthChamberQuantitySeedValidator"
+                                    ]
                                 }
                             }
                         },
