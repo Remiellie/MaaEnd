@@ -257,7 +257,7 @@
                     91,
                     218,
                     289,
-                    265
+                    250
                 ],
                 "expected": [
                     // @i18n-skip
@@ -291,7 +291,7 @@
                     "GrowthChamberSelectTarget",
                     "GrowthChamberValidator"
                 ],
-                "box_index": 0
+                "box_index": 1
             }
         },
         "pre_delay": 0,
@@ -317,14 +317,29 @@
             "GrowthChamberGrowListEnd"
         ]
     },
+    "测试": {
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    "GrowthChamberSelectTarget",
+                    "GrowthChamberValidator"
+                ],
+                "box_index": 1
+            }
+        },
+        "action": {
+            "type": "Click"
+        }
+    },
     "GrowthChamberValidator": {
         "desc": "[培养舱·培养] 验证培养对象是否有效",
         "recognition": {
             "type": "Or",
             "param": {
                 "any_of": [
-                    "GrowthChamberQuantityCropValidator",
-                    "GrowthChamberQuantitySeedValidator"
+                    "GrowthChamberQuantitySeedValidator",
+                    "GrowthChamberQuantityCropValidator"
                 ]
             }
         }
@@ -337,9 +352,9 @@
                 "roi": "GrowthChamberSelectTarget",
                 "roi_offset": [
                     -69,
-                    43,
-                    28,
-                    2
+                    46,
+                    25,
+                    -2
                 ],
                 "expected": [
                     "^拥有\\s*[1-9]\\d*$",
