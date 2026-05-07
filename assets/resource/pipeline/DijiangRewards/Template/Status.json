@@ -255,8 +255,8 @@
             "type": "Or",
             "param": {
                 "any_of": [
-                    "GrowthChamberCheckSeedNotEmpty",
-                    "GrowthChamberCheckPlantNotEmpty"
+                    "GrowthChamberCheckPlantNotEmpty",
+                    "GrowthChamberCheckSeedNotEmpty"
                 ]
             }
         }

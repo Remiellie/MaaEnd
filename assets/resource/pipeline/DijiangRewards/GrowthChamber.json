@@ -289,9 +289,19 @@
             "param": {
                 "all_of": [
                     "GrowthChamberSelectTarget",
-                    "GrowthChamberCheckTargetNotEmpty" //这个任务只有在选择种植任意+不提取基核时才会启用,其他情况下直接命中
+                    {
+                        "recognition": {
+                            "type": "Or",
+                            "param": {
+                                "any_of": [
+                                    "GrowthChamberCheckPlantNotEmpty",
+                                    "GrowthChamberCheckSeedNotEmpty"
+                                ]
+                            }
+                        }
+                    }
                 ],
-                "box_index": 1
+                "box_index": 0
             }
         },
         "pre_delay": 0,
