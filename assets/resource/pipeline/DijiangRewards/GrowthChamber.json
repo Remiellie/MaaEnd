@@ -294,8 +294,47 @@
                             "type": "Or",
                             "param": {
                                 "any_of": [
-                                    "GrowthChamberCheckPlantNotEmpty",
-                                    "GrowthChamberCheckSeedNotEmpty"
+                                    {
+                                        "recognition": {
+                                            "type": "OCR",
+                                            "param": {
+                                                "roi": "GrowthChamberSelectTarget",
+                                                "roi_offset": [
+                                                    -69,
+                                                    43,
+                                                    28,
+                                                    2
+                                                ],
+                                                "expected": [
+                                                    "^拥有\\s*[1-9]\\d*$",
+                                                    "^持有\\s*[1-9]\\d*$",
+                                                    "(?i)^Owned\\s*[1-9]\\d*$",
+                                                    "^総在庫\\s*[1-9]\\d*$"
+                                                ],
+                                                "only_rec": true,
+                                                "order_by": "Vertical"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "recognition": {
+                                            "type": "OCR",
+                                            "param": {
+                                                "roi": "GrowthChamberSelectTarget",
+                                                "roi_offset": [
+                                                    31,
+                                                    41,
+                                                    23,
+                                                    0
+                                                ],
+                                                "expected": [
+                                                    "^[^0].*$"
+                                                ],
+                                                "only_rec": true,
+                                                "order_by": "Vertical"
+                                            }
+                                        }
+                                    }
                                 ]
                             }
                         }

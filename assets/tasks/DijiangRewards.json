@@ -915,7 +915,25 @@
                                 "param": {
                                     "all_of": [
                                         "GrowthChamberSelectTarget",
-                                        "GrowthChamberCheckSeedNotEmpty"
+                                        {
+                                            "recognition": {
+                                                "type": "OCR",
+                                                "param": {
+                                                    "roi": "GrowthChamberSelectTarget",
+                                                    "roi_offset": [
+                                                        31,
+                                                        41,
+                                                        23,
+                                                        0
+                                                    ],
+                                                    "expected": [
+                                                        "^[^0].*$"
+                                                    ],
+                                                    "only_rec": true,
+                                                    "order_by": "Vertical"
+                                                }
+                                            }
+                                        }
                                     ],
                                     "box_index": 0
                                 }
