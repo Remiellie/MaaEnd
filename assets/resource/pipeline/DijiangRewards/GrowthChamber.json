@@ -289,56 +289,7 @@
             "param": {
                 "all_of": [
                     "GrowthChamberSelectTarget",
-                    {
-                        "recognition": {
-                            "type": "Or",
-                            "param": {
-                                "any_of": [
-                                    {
-                                        "recognition": {
-                                            "type": "OCR",
-                                            "param": {
-                                                "roi": "GrowthChamberSelectTarget",
-                                                "roi_offset": [
-                                                    -69,
-                                                    43,
-                                                    28,
-                                                    2
-                                                ],
-                                                "expected": [
-                                                    "^拥有\\s*[1-9]\\d*$",
-                                                    "^持有\\s*[1-9]\\d*$",
-                                                    "(?i)^Owned\\s*[1-9]\\d*$",
-                                                    "^総在庫\\s*[1-9]\\d*$"
-                                                ],
-                                                "only_rec": true,
-                                                "order_by": "Vertical"
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "recognition": {
-                                            "type": "OCR",
-                                            "param": {
-                                                "roi": "GrowthChamberSelectTarget",
-                                                "roi_offset": [
-                                                    31,
-                                                    41,
-                                                    23,
-                                                    0
-                                                ],
-                                                "expected": [
-                                                    "^[^0].*$"
-                                                ],
-                                                "only_rec": true,
-                                                "order_by": "Vertical"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    }
+                    "GrowthChamberValidator"
                 ],
                 "box_index": 0
             }
@@ -365,6 +316,61 @@
             "GrowthChamberReturn",
             "GrowthChamberGrowListEnd"
         ]
+    },
+    "GrowthChamberValidator": {
+        "desc": "[培养舱·培养] 验证培养对象是否有效",
+        "recognition": {
+            "type": "Or",
+            "param": {
+                "any_of": [
+                    "GrowthChamberQuantityCropValidator",
+                    "GrowthChamberQuantitySeedValidator"
+                ]
+            }
+        }
+    },
+    "GrowthChamberQuantityCropValidator": {
+        "desc": "[培养舱·培养] 作物数量验证器",
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": "GrowthChamberSelectTarget",
+                "roi_offset": [
+                    -69,
+                    43,
+                    28,
+                    2
+                ],
+                "expected": [
+                    "^拥有\\s*[1-9]\\d*$",
+                    "^持有\\s*[1-9]\\d*$",
+                    "(?i)^Owned\\s*[1-9]\\d*$",
+                    "^総在庫\\s*[1-9]\\d*$"
+                ],
+                "only_rec": true,
+                "order_by": "Vertical"
+            }
+        }
+    },
+    "GrowthChamberQuantitySeedValidator": {
+        "desc": "[培养舱·培养] 基核数量验证器",
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": "GrowthChamberSelectTarget",
+                "roi_offset": [
+                    31,
+                    41,
+                    23,
+                    0
+                ],
+                "expected": [
+                    "^[^0].*$"
+                ],
+                "only_rec": true,
+                "order_by": "Vertical"
+            }
+        }
     },
     "GrowthChamberGrowListEnd": {
         "desc": "翻到种植列表最末尾",

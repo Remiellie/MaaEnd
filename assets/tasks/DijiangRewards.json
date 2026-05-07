@@ -365,22 +365,12 @@
                                 "Wulingstone"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -399,22 +389,12 @@
                                 "Igneosite"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -435,22 +415,12 @@
                                 "岩天使葉"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -471,22 +441,12 @@
                                 "受蝕玉化葉"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -507,22 +467,12 @@
                                 "星門菌"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -542,22 +492,12 @@
                                 "血潮茸"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -577,22 +517,12 @@
                                 "重闇石"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -612,22 +542,12 @@
                                 "中闇石"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -648,22 +568,12 @@
                                 "輕黯石"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -684,22 +594,12 @@
                                 "至晶多齒葉"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -720,22 +620,12 @@
                                 "純晶多齒葉"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -756,22 +646,12 @@
                                 "晶華多齒葉"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -792,22 +672,12 @@
                                 "重紅柱狀菌"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -828,22 +698,12 @@
                                 "中紅柱狀菌"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -864,22 +724,12 @@
                                 "輕紅柱狀菌"
                             ]
                         },
-                        "GrowthChamberCheckSeedNotEmpty": {
+                        "GrowthChamberQuantitySeedValidator": {
                             "recognition": {
-                                "type": "ColorMatch",
                                 "param": {
-                                    "roi": "GrowthChamberSelectTarget",
-                                    "lower": [
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "upper": [
-                                        255,
-                                        255,
-                                        255
-                                    ],
-                                    "order_by": "Vertical"
+                                    "expected": [
+                                        ".*"
+                                    ]
                                 }
                             }
                         }
@@ -898,6 +748,17 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
+                        "GrowthChamberValidator": {
+                            "recognition": {
+                                "type": "Or",
+                                "param": {
+                                    "any_of": [
+                                        "GrowthChamberQuantityCropValidator",
+                                        "GrowthChamberQuantitySeedValidator"
+                                    ]
+                                }
+                            }
+                        },
                         "GrowthChamberSeedExtract": {
                             "enabled": true
                         },
