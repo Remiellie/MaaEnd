@@ -2,16 +2,19 @@
     "GiftOperatorBranchGift": {
         "desc": "分支1：可以赠送礼物",
         "recognition": {
-            "type": "TemplateMatch",
+            "type": "OCR",
             "param": {
                 "roi": [
-                    929,
-                    393,
-                    239,
-                    220
+                    900,
+                    334,
+                    350,
+                    318
                 ],
-                "template": [
-                    "GiftOperator/GiftGiving.png"
+                "expected": [
+                    "赠送礼物",
+                    "贈送禮物",
+                    "(?i)Offering\\s*Gifts",
+                    "プレゼントを贈る"
                 ]
             }
         },
@@ -25,16 +28,19 @@
     "GiftOperatorBranchMaxAffinity": {
         "desc": "分支3：好感度已满",
         "recognition": {
-            "type": "TemplateMatch",
+            "type": "OCR",
             "param": {
                 "roi": [
-                    951,
-                    410,
-                    236,
-                    195
+                    900,
+                    334,
+                    350,
+                    318
                 ],
-                "template": [
-                    "GiftOperator/LikeAbility.png"
+                "expected": [
+                    "查看赠礼记录",
+                    "查看贈禮紀錄",
+                    "(?i)Gifting\\s*records",
+                    "プレゼント履歴を確認する"
                 ]
             }
         },
@@ -48,21 +54,26 @@
     "GiftOperatorBranchReceive": {
         "desc": "分支2：干员给你送礼，点击领取",
         "recognition": {
-            "type": "TemplateMatch",
+            "type": "OCR",
             "param": {
                 "roi": [
-                    948,
-                    462,
-                    193,
-                    133
+                    900,
+                    334,
+                    350,
+                    318
                 ],
-                "template": [
-                    "RealTimeTask/AutoSkipTip.png"
+                "expected": [
+                    "收下礼物",
+                    "收下禮物",
+                    "(?i)Accept\\s*gift",
+                    "プレゼントを受け取る",
+                    "收下"
                 ]
             }
         },
         "pre_wait_freezes": {
             "time": 200,
+            "timeout": 3000,
             "target": [
                 1008,
                 474,
@@ -82,38 +93,76 @@
     },
     "GiftOperatorClickGift": {
         "desc": "选择礼物",
-        "action": {
-            "type": "Click",
+        "recognition": {
+            "type": "And",
             "param": {
-                "target": [
-                    80,
-                    550,
-                    16,
-                    16
-                ]
+                "all_of": [
+                    "GiftOperatorClickGiftColor",
+                    "GiftOperatorClickGiftColorNumber"
+                ],
+                "box_index": 1
             }
+        },
+        "action": {
+            "type": "Click"
         },
         "next": [
             "GiftOperatorGiftSelected"
         ]
     },
+    "GiftOperatorClickGiftColorNumber": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": "GiftOperatorClickGiftColor",
+                "roi_offset": [
+                    26,
+                    -24,
+                    -50,
+                    24
+                ],
+                "expected": [
+                    "[1-9]\\d*"
+                ]
+            }
+        }
+    },
+    "GiftOperatorClickGiftColor": {
+        "recognition": {
+            "type": "ColorMatch",
+            "param": {
+                "roi": [
+                    0,
+                    466,
+                    1280,
+                    254
+                ],
+                "method": 40,
+                "lower": [
+                    20,
+                    250,
+                    250
+                ],
+                "upper": [
+                    30,
+                    255,
+                    255
+                ],
+                "connected": true,
+                "count": 10
+            }
+        }
+    },
     "GiftOperatorConfirmGift": {
         "desc": "点击赠送按钮",
         "recognition": {
-            "type": "TemplateMatch",
+            "type": "And",
             "param": {
-                "roi": [
-                    1201,
-                    629,
-                    48,
-                    62
+                "all_of": [
+                    "YellowButtonBackground",
+                    "GiftOperatorConfirmGiftText"
                 ],
-                "template": [
-                    "Common/Button/YellowConfirmButtonType2.png"
-                ],
-                "threshold": [
-                    0.46
-                ]
+                "box_index": 1
             }
         },
         "action": {
@@ -124,8 +173,24 @@
             "timeout": 3000
         },
         "next": [
-            "GiftOperatorGiftDialog"
+            "[JumpBack]GiftOperatorGiftDialog",
+            "GiftOperatorLeave"
         ]
+    },
+    "GiftOperatorConfirmGiftText": {
+        "desc": "确认赠送按钮上有文字，避免误点",
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": "YellowButtonBackground",
+                "expected": [
+                    "确认赠送",
+                    "確定贈送",
+                    "Confirm",
+                    "贈る"
+                ]
+            }
+        }
     },
     "GiftOperatorGiftDialog": {
         "desc": "赠送后跳过对话。",
@@ -145,10 +210,7 @@
         },
         "action": {
             "type": "Click"
-        },
-        "next": [
-            "GiftOperatorLeave"
-        ]
+        }
     },
     "GiftOperatorGiftSelectedLabelColor": {
         "desc": "选中礼物标签颜色",
@@ -157,18 +219,18 @@
             "param": {
                 "roi": [
                     28,
-                    500,
+                    430,
                     1252,
-                    50
+                    130
                 ],
                 "method": 40,
                 "lower": [
-                    28,
+                    25,
                     230,
                     240
                 ],
                 "upper": [
-                    28,
+                    30,
                     255,
                     255
                 ],
@@ -184,14 +246,14 @@
             "param": {
                 "roi": "GiftOperatorGiftSelectedLabelColor",
                 "lower": [
-                    72,
-                    72,
-                    66
+                    60,
+                    60,
+                    60
                 ],
                 "upper": [
                     114,
                     110,
-                    79
+                    100
                 ],
                 "connected": true,
                 "count": 10
@@ -223,9 +285,9 @@
             "type": "And",
             "param": {
                 "all_of": [
-                    "GiftOperatorGiftSelectedLabelColor",
-                    "GiftOperatorGiftSelectedTextColor",
-                    "GiftOperatorGiftSelectedText"
+                    "GiftOperatorGiftSelectedLabelColor"
+                    //"GiftOperatorGiftSelectedTextColor",
+                    //"GiftOperatorGiftSelectedText"
                 ]
             }
         },
@@ -240,20 +302,73 @@
             "param": {
                 "roi": [
                     20,
-                    634,
-                    92,
-                    56
+                    606,
+                    108,
+                    83
                 ],
                 "expected": [
                     "默认",
                     "預設",
                     "(?i)Default",
                     "デフォルト"
+                ],
+                "replace": [
+                    [
+                        "数",
+                        "默"
+                    ],
+                    [
+                        "以",
+                        "认"
+                    ]
                 ]
             }
         },
         "next": [
-            "GiftOperatorClickGift"
+            "GiftOperatorClickGift",
+            "GiftOperatorClickGiftFull"
+        ]
+    },
+    "GiftOperatorClickGiftFull": {
+        "desc": "赠送已满",
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    971,
+                    540,
+                    309,
+                    180
+                ],
+                "expected": [
+                    "无法赠送",
+                    "無法贈送",
+                    "Cannot Gift",
+                    "贈れません",
+                    "증정 불가"
+                ]
+            }
+        },
+        "next": [
+            "GiftOperatorGiftFullLeave"
+        ]
+    },
+    "GiftOperatorGiftFullLeave": {
+        "desc": "赠送已满离开",
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    "CloseButtonType1"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "InWorld",
+            "[JumpBack]GiftOperatorLeave"
         ]
     },
     "GiftOperatorReceiveDialog": {
@@ -262,10 +377,10 @@
             "type": "TemplateMatch",
             "param": {
                 "roi": [
-                    616,
-                    679,
-                    48,
-                    40
+                    603,
+                    646,
+                    75,
+                    74
                 ],
                 "template": [
                     "RealTimeTask/AutoSkipNext2.png"
@@ -276,13 +391,13 @@
             "type": "Click"
         },
         "post_wait_freezes": {
-            "time": 200,
-            "timeout": 3000,
+            "time": 1000,
+            "timeout": 2000,
             "target": [
-                102,
-                103,
-                15,
-                15
+                831,
+                403,
+                161,
+                176
             ]
         },
         "next": [
@@ -310,13 +425,34 @@
                 ]
             }
         },
+        "pre_wait_freezes": {
+            "time": 200,
+            "timeout": 2000,
+            "target": [
+                977,
+                145,
+                192,
+                215
+            ]
+        },
         "action": {
             "type": "Click"
+        },
+        "post_wait_freezes": {
+            "time": 200,
+            "timeout": 2000,
+            "target": [
+                977,
+                145,
+                192,
+                215
+            ]
         },
         "next": [
             "GiftOperatorBranchGift",
             "GiftOperatorBranchReceive",
-            "GiftOperatorBranchMaxAffinity"
+            "GiftOperatorBranchMaxAffinity",
+            "GiftOperatorSkipDialog"
         ]
     }
 }

@@ -11,7 +11,7 @@ from connection_models import RecordingSessionConfig
 from connectors import build_recording_connector
 import key_listener
 from model import ActionType, PathPoint, PathRecorder, normalize_zone_id
-from runtime import AGENT_DIR, CPP_AGENT_EXE, MAAFW_BIN_DIR, MaaRuntime, get_agent_env
+from runtime import AGENT_DIR, CPP_AGENT_EXE, MAAFW_BIN_DIR, MaaRuntime, get_agent_env, new_agent_id
 
 
 StatusCallback = Callable[[str, str], None]
@@ -69,6 +69,8 @@ class RecordingService:
         self._last_record_log_at = 0.0
         self._last_skip_log_signature: tuple[object, ...] | None = None
         self._last_skip_log_at = 0.0
+        # 首个有效定位到达前处于「预热」态（黄点提示），到达后才切到「正在录制」（红点）。
+        self._first_fix_emitted = False
 
         # 实时位置（录制线程写入，主线程读取；热键回调线程读取）
         self._live_position = LivePosition()
@@ -99,6 +101,7 @@ class RecordingService:
         self._last_record_log_at = 0.0
         self._last_skip_log_signature = None
         self._last_skip_log_at = 0.0
+        self._first_fix_emitted = False
         self._running_event.set()
         self._worker_thread = threading.Thread(target=self._run, daemon=True)
         self._worker_thread.start()
@@ -111,7 +114,7 @@ class RecordingService:
             if self._session_config is None:
                 raise RuntimeError("录制会话配置缺失。")
 
-            agent_id = f"MapLocatorAgent_{int(time.time())}"
+            agent_id = new_agent_id("MapLocatorAgent")
             if not CPP_AGENT_EXE.exists():
                 raise FileNotFoundError(f"找不到 Agent 可执行文件: {CPP_AGENT_EXE}")
 
@@ -154,9 +157,10 @@ class RecordingService:
                 raise RuntimeError("Tasker 初始化失败。")
             print("Tasker initialized.")
 
+            # 预热态：识别引擎已就绪但尚未拿到首个定位，提示用户先别动，避免开头几步被吞。
             self._on_status(
-                f"● 正在录制轨迹 [{self._session_config.display_name()}] (G:复制坐标 X:强制打点)",
-                "#ef4444",
+                f"● 定位预热中，请保持静止…定位成功后自动开始录制 [{self._session_config.display_name()}]",
+                "#f59e0b",
             )
 
             self._register_hotkeys()
@@ -298,6 +302,13 @@ class RecordingService:
             return
 
         self._update_live_position(float(x), float(y), zone_id)
+        if not self._first_fix_emitted:
+            # 首个有效定位到达：从「预热」切到「正在录制」，红点提示已真正开始记录。
+            self._first_fix_emitted = True
+            self._on_status(
+                f"● 正在录制轨迹 [{self._session_config.display_name()}] (G:复制坐标 X:强制打点)",
+                "#ef4444",
+            )
         self._emit_record_summary(detail, zone_id=zone_id)
         self._recorder.update(float(x), float(y), int(ActionType.RUN), zone_id)
 

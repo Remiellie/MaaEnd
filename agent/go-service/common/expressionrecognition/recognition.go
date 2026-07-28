@@ -2,6 +2,7 @@ package expressionrecognition
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -11,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/i18n"
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/maafocus"
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/recogtarget"
 	maa "github.com/MaaXYZ/maa-framework-go/v4"
 	"github.com/rs/zerolog/log"
 )
@@ -20,31 +24,19 @@ var _ maa.CustomRecognitionRunner = &Recognition{}
 type Recognition struct{}
 
 type Params struct {
-	Expression string `json:"expression"`
-	BoxNode    string `json:"box_node"`
-}
-
-type nodeDefinition struct {
-	Recognition recognitionDefinition `json:"recognition"`
-}
-
-type recognitionDefinition struct {
-	Type        string            `json:"type"`
-	Recognition string            `json:"recognition"`
-	Param       json.RawMessage   `json:"param"`
-	AllOf       []json.RawMessage `json:"all_of"`
-	BoxIndex    *int              `json:"box_index"`
-}
-
-type andRecognitionParam struct {
-	AllOf    []json.RawMessage `json:"all_of"`
-	BoxIndex *int              `json:"box_index"`
+	Expression                       string `json:"expression"`
+	BoxNode                          string `json:"box_node"`
+	FocusMatchedResolvedExpression   bool   `json:"focus_matched_resolved_expression"`
+	FocusUnmatchedResolvedExpression bool   `json:"focus_unmatched_resolved_expression"`
 }
 
 var (
 	expressionNodePattern = regexp.MustCompile(`\{([^{}]+)\}`)
 	ocrNumericPattern     = regexp.MustCompile(`(?i)[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)\s*(?:[a-z]+|万|亿)?`)
 	asciiLetterPattern    = regexp.MustCompile(`[A-Za-z]+$`)
+
+	expressionIntMax = int(^uint(0) >> 1)
+	expressionIntMin = -expressionIntMax - 1
 )
 
 // Run evaluates a boolean expression composed of numeric recognition nodes.
@@ -94,6 +86,11 @@ func (r *Recognition) Run(ctx *maa.Context, arg *maa.CustomRecognitionArg) (*maa
 	}
 
 	logEvaluationResult(params.Expression, resolvedExpression, values, matched)
+	if matched && params.FocusMatchedResolvedExpression {
+		maafocus.Print(ctx, i18n.T("expressionrecognition.focus_matched", resolvedExpression))
+	} else if !matched && params.FocusUnmatchedResolvedExpression {
+		maafocus.Print(ctx, i18n.T("expressionrecognition.focus_unmatched", resolvedExpression))
+	}
 
 	if !matched {
 		return nil, false
@@ -218,115 +215,19 @@ func resolveResultBox(ctx *maa.Context, arg *maa.CustomRecognitionArg, params *P
 }
 
 func extractRecognitionNumberFromNode(ctx *maa.Context, nodeName string, detail *maa.RecognitionDetail) (int, error) {
-	if detail == nil {
-		return 0, fmt.Errorf("recognition detail is empty")
-	}
-
-	raw, err := ctx.GetNodeJSON(nodeName)
-	if err != nil {
-		return 0, fmt.Errorf("get node %s json: %w", nodeName, err)
-	}
-	if strings.TrimSpace(raw) == "" {
-		return 0, fmt.Errorf("node %s json is empty", nodeName)
-	}
-
-	boxIndex, isAndNode, err := resolveAndNodeBoxIndex(raw)
+	selectedDetail, err := recogtarget.SelectDetail(ctx, nodeName, detail)
 	if err != nil {
 		return 0, fmt.Errorf("resolve %s numeric source: %w", nodeName, err)
 	}
-	if !isAndNode {
-		return extractRecognitionNumber(detail)
-	}
-
-	selectedDetail, err := extractAndSelectedDetail(detail, boxIndex)
-	if err != nil {
-		return 0, err
-	}
-
 	return extractRecognitionNumber(selectedDetail)
 }
 
 func extractRecognitionBoxFromNode(ctx *maa.Context, nodeName string, detail *maa.RecognitionDetail) (maa.Rect, error) {
-	if detail == nil {
-		return maa.Rect{}, fmt.Errorf("recognition detail is empty")
-	}
-
-	raw, err := ctx.GetNodeJSON(nodeName)
-	if err != nil {
-		return maa.Rect{}, fmt.Errorf("get node %s json: %w", nodeName, err)
-	}
-	if strings.TrimSpace(raw) == "" {
-		return maa.Rect{}, fmt.Errorf("node %s json is empty", nodeName)
-	}
-
-	boxIndex, isAndNode, err := resolveAndNodeBoxIndex(raw)
+	selectedDetail, err := recogtarget.SelectDetail(ctx, nodeName, detail)
 	if err != nil {
 		return maa.Rect{}, fmt.Errorf("resolve %s box source: %w", nodeName, err)
 	}
-	if !isAndNode {
-		return detail.Box, nil
-	}
-
-	selectedDetail, err := extractAndSelectedDetail(detail, boxIndex)
-	if err != nil {
-		return maa.Rect{}, err
-	}
 	return selectedDetail.Box, nil
-}
-
-func extractAndSelectedDetail(detail *maa.RecognitionDetail, boxIndex int) (*maa.RecognitionDetail, error) {
-	if len(detail.CombinedResult) == 0 {
-		return nil, fmt.Errorf("and node combined result is empty")
-	}
-	if boxIndex < 0 || boxIndex >= len(detail.CombinedResult) {
-		return nil, fmt.Errorf("and node box_index %d out of range, combined result size=%d", boxIndex, len(detail.CombinedResult))
-	}
-
-	selectedDetail := detail.CombinedResult[boxIndex]
-	if selectedDetail == nil {
-		return nil, fmt.Errorf("and node box_index %d result is empty", boxIndex)
-	}
-	return selectedDetail, nil
-}
-
-func resolveAndNodeBoxIndex(raw string) (int, bool, error) {
-	var node nodeDefinition
-	if err := json.Unmarshal([]byte(raw), &node); err != nil {
-		return 0, false, fmt.Errorf("unmarshal node json: %w", err)
-	}
-
-	recognitionType := strings.TrimSpace(node.Recognition.Type)
-	if recognitionType == "" {
-		recognitionType = strings.TrimSpace(node.Recognition.Recognition)
-	}
-	if recognitionType != "And" {
-		return 0, false, nil
-	}
-
-	allOf := node.Recognition.AllOf
-	boxIndex := 0
-
-	if len(node.Recognition.Param) > 0 {
-		var param andRecognitionParam
-		if err := json.Unmarshal(node.Recognition.Param, &param); err != nil {
-			return 0, true, fmt.Errorf("unmarshal and param: %w", err)
-		}
-		allOf = param.AllOf
-		if param.BoxIndex != nil {
-			boxIndex = *param.BoxIndex
-		}
-	} else if node.Recognition.BoxIndex != nil {
-		boxIndex = *node.Recognition.BoxIndex
-	}
-
-	if len(allOf) == 0 {
-		return 0, true, fmt.Errorf("and node all_of is empty")
-	}
-	if boxIndex < 0 || boxIndex >= len(allOf) {
-		return 0, true, fmt.Errorf("and node box_index %d out of range, all_of size=%d", boxIndex, len(allOf))
-	}
-
-	return boxIndex, true, nil
 }
 
 func extractRecognitionNumber(detail *maa.RecognitionDetail) (int, error) {
@@ -364,7 +265,7 @@ func evaluateASTExpression(expr ast.Expr) (any, error) {
 		if node.Kind != token.INT {
 			return nil, fmt.Errorf("unsupported literal kind %s", node.Kind.String())
 		}
-		return strconv.Atoi(node.Value)
+		return parseExpressionIntLiteral(node.Value)
 	case *ast.ParenExpr:
 		return evaluateASTExpression(node.X)
 	case *ast.UnaryExpr:
@@ -527,13 +428,51 @@ func parseOCRNumericValue(text string) (int, error) {
 	}
 
 	scaled := math.Round(value * multiplier)
-	maxInt := int(^uint(0) >> 1)
-	minInt := -maxInt - 1
-	if scaled > float64(maxInt) || scaled < float64(minInt) {
-		return 0, fmt.Errorf("ocr text %q is out of int range", cleaned)
+	if scaled > float64(expressionIntMax) || scaled < float64(expressionIntMin) {
+		clamped := clampToExpressionInt(scaled)
+		log.Warn().
+			Str("component", "ExpressionRecognition").
+			Str("ocr_text", cleaned).
+			Float64("raw_value", scaled).
+			Int("clamped_value", clamped).
+			Msg("ocr numeric value out of int range, clamped")
+		return clamped, nil
 	}
 
 	return int(scaled), nil
+}
+
+func parseExpressionIntLiteral(raw string) (int, error) {
+	value, err := strconv.Atoi(raw)
+	if err == nil {
+		return value, nil
+	}
+
+	var numErr *strconv.NumError
+	if errors.As(err, &numErr) && numErr.Err == strconv.ErrRange {
+		clamped := expressionIntMax
+		if strings.HasPrefix(strings.TrimSpace(raw), "-") {
+			clamped = expressionIntMin
+		}
+		log.Warn().
+			Str("component", "ExpressionRecognition").
+			Str("literal", raw).
+			Int("clamped_value", clamped).
+			Msg("expression integer literal out of int range, clamped")
+		return clamped, nil
+	}
+
+	return 0, err
+}
+
+func clampToExpressionInt(value float64) int {
+	if value > float64(expressionIntMax) {
+		return expressionIntMax
+	}
+	if value < float64(expressionIntMin) {
+		return expressionIntMin
+	}
+	return int(value)
 }
 
 func normalizeOCRNumericToken(token string) (string, float64, error) {

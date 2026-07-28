@@ -125,8 +125,21 @@ bool MotionController::SupportsSprint() const
     return action_wrapper_ != nullptr && action_wrapper_->SupportsSprint();
 }
 
+void MotionController::SetSprintSuppressed(bool suppressed)
+{
+    if (suppressed && !sprint_suppressed_ && sprint_active_ && is_moving_forward_ && action_wrapper_ != nullptr) {
+        action_wrapper_->ResetForwardWalkSync(kSprintCancelReleaseMs);
+        sprint_active_ = false;
+        LogInfo << "Sprint cancelled near collect point (dropped to walking speed).";
+    }
+    sprint_suppressed_ = suppressed;
+}
+
 bool MotionController::TriggerSprint()
 {
+    if (sprint_suppressed_) {
+        return false;
+    }
     if (!SupportsSprint()) {
         return false;
     }
@@ -196,13 +209,18 @@ TurnCommandResult MotionController::SendViewDelta(double delta_degrees)
     if (units == 0) {
         units = delta_degrees > 0.0 ? 1 : -1;
     }
-    if (!action_wrapper_->SendViewDeltaSync(units, 0)) {
+    const auto send_started_at = std::chrono::steady_clock::now();
+    const bool sent = action_wrapper_->SendViewDeltaSync(units, 0);
+    const int64_t send_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - send_started_at).count();
+    if (!sent) {
+        LogWarn << "Steering command rejected by the input backend." << VAR(delta_degrees) << VAR(units) << VAR(send_ms);
         return result;
     }
 
     result.issued = true;
     result.issued_delta_degrees = delta_degrees;
-    LogDebug << "Steering command issued." << VAR(delta_degrees) << VAR(units);
+    LogDebug << "Steering command issued." << VAR(delta_degrees) << VAR(units) << VAR(send_ms);
     return result;
 }
 

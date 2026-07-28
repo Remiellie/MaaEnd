@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,15 @@ def _resolve_cpp_agent_executable() -> Path:
 CPP_AGENT_EXE = _resolve_cpp_agent_executable()
 
 
+def new_agent_id(prefix: str) -> str:
+    """生成全局唯一的 Agent id。
+
+    id 即 AgentClient 的 IPC 端点名: 重名时后到者轻则 connect() 永久挂死, 重则
+    zmq 抛出未捕获异常 abort 掉宿主进程。曾用 int(time.time()), 同秒即撞。
+    """
+    return f"{prefix}_{os.getpid()}_{uuid.uuid4().hex[:8]}"
+
+
 def get_agent_env() -> dict[str, str]:
     """获取启动 Agent 专用的环境变量，注入 DLL 搜索路径。"""
     import os
@@ -51,6 +61,7 @@ class MaaRuntime:
     Resource: Any
     Win32Controller: Any
     AdbController: Any
+    PlayCoverController: Any
     Tasker: Any
     AgentClient: Any
     Toolkit: Any
@@ -78,6 +89,11 @@ def load_maa_runtime() -> MaaRuntime | None:
         AdbController = None
 
     try:
+        from maa.controller import PlayCoverController
+    except ImportError:
+        PlayCoverController = None
+
+    try:
         from maa.toolkit import Toolkit
     except ImportError:
         Toolkit = None
@@ -87,6 +103,7 @@ def load_maa_runtime() -> MaaRuntime | None:
         Resource=Resource,
         Win32Controller=Win32Controller,
         AdbController=AdbController,
+        PlayCoverController=PlayCoverController,
         Tasker=Tasker,
         AgentClient=AgentClient,
         Toolkit=Toolkit,

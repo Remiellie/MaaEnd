@@ -57,18 +57,16 @@
                     88,
                     22
                 ],
+                "method": 6,
                 "lower": [
-                    65,
-                    65,
-                    65
+                    0
                 ],
                 "upper": [
-                    75,
-                    75,
-                    75
+                    160
                 ],
                 "connected": true,
-                "count": 10
+                "count": 1500,
+                "order_by": "Area"
             }
         }
     },
@@ -77,15 +75,11 @@
             "type": "ColorMatch",
             "param": {
                 "roi": "AutoStockInStapleItemNameLabelColor",
-                "method": 40,
+                "method": 6,
                 "lower": [
-                    0,
-                    0,
-                    0
+                    180
                 ],
                 "upper": [
-                    0,
-                    2,
                     255
                 ],
                 "count": 10
@@ -105,36 +99,6 @@
                     4
                 ],
                 "expected": [],
-                "replace": [
-                    [
-                        "氏", //整氏相机 → 醚质相机
-                        "质"
-                    ],
-                    [
-                        "群", //群氏相机 → 醚质相机
-                        "醚"
-                    ],
-                    [
-                        "跨", //《前沿跨望》→《前沿瞭望》
-                        "瞭"
-                    ],
-                    [
-                        "楚", //塞楚珂披中/塞楚珂披内 → 塞梦珂披巾（常见错字：楚↔梦）
-                        "梦"
-                    ],
-                    [
-                        "昆", //昆门锁 → 星门锁
-                        "星"
-                    ],
-                    [
-                        "早", //早门锁 → 星门锁
-                        "星"
-                    ],
-                    [
-                        "系", //浪潮海系 → 浪潮海石
-                        "石"
-                    ]
-                ],
                 "only_rec": true,
                 "order_by": "Vertical"
             }
@@ -272,18 +236,19 @@
     },
     "AutoStockStapleBetterSliding": {
         "desc": "自动购买稳定物资 - BetterSliding 精确滑动到指定数量",
+        "enabled": false,
         "pre_delay": 0,
         "action": {
             "type": "Custom",
             "param": {
                 "custom_action": "BetterSliding",
                 "custom_action_param": {
-                    "ClampTargetToMax": true,
+                    "ClampTargetToSliderMax": true,
                     "DecreaseButton": "AutoStockpile/DecreaseButton.png",
                     "Direction": "right",
                     "IncreaseButton": "AutoStockpile/IncreaseButton.png",
                     "GreenMask": true,
-                    "Quantity": {
+                    "SliderQuantity": {
                         "Box": [
                             375,
                             508,
@@ -292,7 +257,7 @@
                         ],
                         "OnlyRec": true
                     }
-                    //"Quantity": {
+                    //"SliderQuantity": {
                     //    "Box": [
                     //        375,
                     //        508,
@@ -319,8 +284,14 @@
         },
         "post_delay": 0,
         "rate_limit": 0,
+        "next": [
+            "AutoStockStapleQuantityControlConfirmBuy"
+        ],
+        "focus": {
+            "Node.Action.Failed": "$task.AutoStockStaple.focus.quantity_control.better_sliding_failed"
+        },
         "attach": {
-            "Target": 10 //这里会被custom程序覆盖后运行
+            "TargetQuantity": 10 //这里会被 custom 程序覆盖后运行
         }
     }
 }

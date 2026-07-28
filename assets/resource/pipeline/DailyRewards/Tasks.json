@@ -51,39 +51,43 @@
             "DailyTaskComplete"
         ]
     },
+    "DailyTaskClaimSingleRewardOCR": {
+        "desc": "识别单个任务领取按钮（OCR）",
+        "recognition": "OCR",
+        "roi": [
+            825,
+            200,
+            300,
+            400
+        ],
+        "expected": [
+            "领取",
+            "領取",
+            "(?i)Claim",
+            "受取",
+            "[Cc]laim"
+        ]
+    },
+    "DailyTaskClaimSingleRewardTemplate": {
+        "desc": "识别单个任务领取按钮（模板）",
+        "recognition": "TemplateMatch",
+        "roi": [
+            825,
+            200,
+            300,
+            400
+        ],
+        "template": [
+            "DailyRewards/TaskClaimSingleReward.png"
+        ],
+        "threshold": 0.9
+    },
     "DailyTaskClaimSingleReward": {
         "desc": "点击单个任务中领取按钮",
         "recognition": "Or",
         "any_of": [
-            {
-                "recognition": "OCR",
-                "roi": [
-                    825,
-                    200,
-                    300,
-                    400
-                ],
-                "expected": [
-                    "领取",
-                    "領取",
-                    "(?i)Claim",
-                    "受取",
-                    "[Cc]laim"
-                ]
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    825,
-                    200,
-                    300,
-                    400
-                ],
-                "template": [
-                    "DailyRewards/TaskClaimSingleReward.png"
-                ],
-                "threshold": 0.9
-            }
+            "DailyTaskClaimSingleRewardOCR",
+            "DailyTaskClaimSingleRewardTemplate"
         ],
         "pre_delay": 0,
         "action": {
@@ -91,7 +95,19 @@
             "param": {}
         },
         "post_delay": 400, // 画面变化太小了，不适合wait_freeze
-        "rate_limit": 0
+        "rate_limit": 0,
+        "next": [
+            "DailyTaskClaimSingleRewardSuccess"
+        ]
+    },
+    "DailyTaskClaimSingleRewardSuccess": {
+        "desc": "单个任务领取成功",
+        "recognition": "Or",
+        "any_of": [
+            "DailyTaskClaimSingleRewardOCR",
+            "DailyTaskClaimSingleRewardTemplate"
+        ],
+        "inverse": true
     },
     "DailyTaskClaimActivityRewards": {
         "desc": "领取活跃度奖励",
@@ -218,6 +234,7 @@
             "DailyTaskUpgradeWeapon",
             "DailyTaskCreation",
             "DailyTaskAssemble",
+            "DailyTaskLevelUpOperator",
             "DailyTaskScrollFinished",
             "[JumpBack]DailyTaskScrollDown"
         ]
@@ -308,6 +325,34 @@
             "DailyTaskActivityLimitNotReached"
         ]
     },
+    "DailyTaskLevelUpOperator": {
+        "desc": "检测是否有干员升级任务",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    343,
+                    191,
+                    469,
+                    409
+                ],
+                "expected": [
+                    "干员等级",
+                    "幹員等級",
+                    "(?i)Level",
+                    "レベル"
+                ]
+            }
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "DailyTaskLevelUpOperatorIsValid",
+            "DailyTaskActivityLimitNotReached"
+        ]
+    },
     "DailyTaskCreationIsValid": {
         "desc": "检测简易制作任务是否可以执行",
         "recognition": {
@@ -395,6 +440,37 @@
         "custom_action_param": {
             "sub": [
                 "WeaponUpgradeStart"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "DailyTaskStart"
+        ]
+    },
+    "DailyTaskLevelUpOperatorIsValid": {
+        "desc": "检测干员升级任务是否可以执行",
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": "DailyTaskLevelUpOperator",
+                "roi_offset": [
+                    429,
+                    -10,
+                    110,
+                    60
+                ],
+                "expected": [
+                    "前往",
+                    "Go"
+                ]
+            }
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SubTask",
+        "custom_action_param": {
+            "sub": [
+                "OperatorLevelUpStart"
             ]
         },
         "post_delay": 0,

@@ -2,6 +2,10 @@
     "AutoSellStockRedistributionItemOpenPrepare": {
         "desc": "准备售卖物资",
         "pre_delay": 0,
+        "anchor": {
+            "AutoSellStockRedistributionItemFailedToValleyIVAnchor": "AutoSellStockRedistributionItemOpenPrepareFriendsFailedToValleyIV",
+            "AutoSellStockRedistributionItemFailedToWulingAnchor": "AutoSellStockRedistributionItemOpenPrepareFriendsFailedToWuling"
+        },
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
@@ -30,6 +34,7 @@
         "rate_limit": 0,
         "next": [
             "[JumpBack]AutoSellStockRedistributionItemOpenPrepareRegionalDevelopmentSwitchTab",
+            "AutoSellTicketValleyIVOverflow",
             "AutoSellStockRedistributionItemOpenInRegionalDevelopment"
         ]
     },
@@ -52,6 +57,7 @@
         "rate_limit": 0,
         "next": [
             "[JumpBack]AutoSellStockRedistributionItemOpenPrepareRegionalDevelopmentSwitchTab",
+            "AutoSellTicketWulingOverflow",
             "AutoSellStockRedistributionItemOpenInRegionalDevelopment"
         ]
     },
@@ -64,7 +70,7 @@
             650,
             180
         ],
-        "template": "AutoSell/TabSwitchElasticGoods.png",
+        "template": "AutoStockpile/ElasticGoodsButton.png",
         "threshold": 0.9,
         "pre_delay": 0,
         "action": "Click",
@@ -80,7 +86,7 @@
         "roi": [
             0,
             0,
-            650,
+            850,
             180
         ],
         "template": "AutoSell/TabSwitchElasticGoodsActive.png",
@@ -126,8 +132,31 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
+            "AutoSellStockRedistributionItemOpenInFriendsSwipe"
+        ]
+    },
+    "AutoSellStockRedistributionItemOpenInFriendsSwipe": {
+        "desc": "当前在好友界面，尝试滑动查找目标物资,ADB端滑动,win32无动作",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            600,
+            150
+        ],
+        "template": [
+            "AutoSell/StockRedistributionValleyIVChoose.png",
+            "AutoSell/StockRedistributionValleyIVNotChoose.png"
+        ],
+        "threshold": 0.9,
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "AutoSellTicketValleyIVOverflow",
             "AutoSellStockRedistributionItemOpenInFriends",
-            "AutoSellStockRedistributionItemOpenPrepareFriendsFailedToValleyIV"
+            "[Anchor]AutoSellStockRedistributionItemFailedToValleyIVAnchor"
         ]
     },
     "AutoSellStockRedistributionItemOpenPrepareFriendsSwitchWuling": {
@@ -150,8 +179,9 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
+            "AutoSellTicketWulingOverflow",
             "AutoSellStockRedistributionItemOpenInFriends",
-            "AutoSellStockRedistributionItemOpenPrepareFriendsFailedToWuling"
+            "[Anchor]AutoSellStockRedistributionItemFailedToWulingAnchor"
         ]
     },
     "AutoSellStockRedistributionItemOpenPrepareFriendsFailedToValleyIV": {
@@ -342,11 +372,18 @@
                 "template": [
                     "AutoSell/SellTicketFriendValleyIV.png",
                     "AutoSell/SellTicketFriendWuling.png"
-                ],
-                "threshold": 0.9
+                ]
             }
         ],
-        "pre_wait_freezes": 100,
+        "pre_wait_freezes": {
+            "target": [
+                460,
+                260,
+                610,
+                310
+            ],
+            "time": 100
+        },
         "pre_delay": 0,
         "post_delay": 0,
         "rate_limit": 0,
@@ -358,9 +395,11 @@
     "AutoSellFriendsPricesExpected": {
         "desc": "价格符合预期",
         "recognition": "Custom",
-        "custom_recognition": "AutoSellPriceCompareRecognition",
+        "custom_recognition": "ExpressionRecognition",
         "custom_recognition_param": {
-            "lowest_price": 5000
+            "expression": "{AutoSellFriendsPriceRecognition} >= 5000 ",
+            "focus_matched_resolved_expression": true,
+            "focus_unmatched_resolved_expression": true
         },
         "pre_delay": 0,
         "post_delay": 0,
@@ -407,11 +446,12 @@
         "rate_limit": 0
     },
     "AutoSellFriendsPricesExpectedBuy": {
-        "desc": "当前价格符合预期，在当前好友飞船上，可以直接购买",
-        "recognition": "And",
-        "all_of": [
-            "AutoSellFriendsPriceCurrentRecognition"
-        ],
+        "desc": "当前价格符合预期，在当前好友飞船上，可以直接售卖",
+        "recognition": "Custom",
+        "custom_recognition": "ExpressionRecognition",
+        "custom_recognition_param": {
+            "expression": "{AutoSellFriendsPriceCurrentRecognition} >= 5000 "
+        },
         "pre_delay": 0,
         "post_delay": 0,
         "rate_limit": 0,
@@ -419,7 +459,7 @@
             "AutoSellFriendsPricesExpectedBuyBackToSellGoods"
         ],
         "focus": {
-            "Node.Recognition.Succeeded": "当前拜访好友是最高价，可以购买"
+            "Node.Recognition.Succeeded": "当前拜访好友是最高价，可以售卖"
         }
     },
     "AutoSellFriendsPricesExpectedBuyBackToSellGoods": {
@@ -446,22 +486,66 @@
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "AutoSellFriendsPricesExpectedBuySlide",
-            "AutoSellFriendsPricesExpectedBuyClick"
+            "AutoSellFriendsPricesExpectedNeedSlide",
+            "AutoSellFriendsPricesExpectedBuyDirect"
+        ]
+    },
+    "AutoSellFriendsPricesExpectedBuyDirect": {
+        "desc": "当前价格符合预期，可以直接售卖",
+        "recognition": "OCR",
+        "roi": [
+            314,
+            96,
+            346,
+            174
+        ],
+        "expected": [
+            "(?<![0-9])[01](?![0-9])"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            // "AutoSellFriendsPricesExpectedBuyClick"
+        ]
+    },
+    "AutoSellFriendsPricesExpectedNeedSlide": {
+        "desc": "当前价格符合预期，需要滑动调整价格",
+        "recognition": "OCR",
+        "roi": [
+            314,
+            96,
+            346,
+            174
+        ],
+        "expected": [
+            "(?<![0-9])(?![01](?![0-9]))\\d+(?![0-9])"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "AutoSellFriendsPricesExpectedBuySlide"
         ]
     },
     "AutoSellFriendsPricesExpectedBuySlide": {
         "desc": "从好友价格界面返回到物资调度界面调整滑块",
         "recognition": "TemplateMatch",
-        "template": "AutoSell/ItemAddButton.png",
-        "threshold": 0.9,
+        "roi_offset": [
+            639,
+            495,
+            255,
+            146
+        ],
+        "template": "AutoStockpile/IncreaseButton.png",
+        "green_mask": true,
         "pre_wait_freezes": 100,
         "pre_delay": 0,
         "action": "Click",
         "target_offset": [
-            -75,
+            -70,
             5,
-            -5,
+            -10,
             -10
         ],
         "post_delay": 0,
@@ -493,28 +577,7 @@
         "recognition": "And",
         "all_of": [
             "AutoSellFriendsPriceFirstTicketRecognition",
-            {
-                "recognition": "ColorMatch",
-                "roi": "AutoSellFriendsPriceFirstTicketRecognition",
-                "roi_offset": [
-                    -260,
-                    -20,
-                    20,
-                    30
-                ],
-                "lower": [
-                    245,
-                    228,
-                    0
-                ],
-                "upper": [
-                    255,
-                    248,
-                    10
-                ],
-                "connected": true,
-                "count": 15
-            }
+            "AutoSellFriendsPricesExpectedGoToHighlightRecognition"
         ],
         "box_index": 1,
         "pre_delay": 0,
@@ -552,7 +615,11 @@
         "pre_wait_freezes": 100,
         "pre_delay": 0,
         "action": "Click",
-        "post_delay": 0,
+        "anchor": {
+            "AutoSellStockRedistributionItemFailedToValleyIVAnchor": "",
+            "AutoSellStockRedistributionItemFailedToWulingAnchor": ""
+        }, // 下一个好友一定能找到，找不到是识别问题，任务失败查看截图内容
+        "post_delay": 3000, // 快速关闭当前打开的界面，可能会误判到当前在售卖界面
         "rate_limit": 0,
         "next": [
             "AutoSellStockRedistributionItemOpenPrepareFriends",

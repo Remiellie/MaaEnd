@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/captureuid"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/i18n"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/maafocus"
 	maa "github.com/MaaXYZ/maa-framework-go/v4"
@@ -101,7 +102,7 @@ func (a *SelectItemAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) bool 
 
 	serverNow := time.Now()
 	serverDate, serverWeekday := serverDateInfo(serverNow, serverLocation)
-	if err := storeDailyGoodsPrices(attach.AllowDataUpload, serverNow, serverLocation, region, *data); err != nil {
+	if err := storeDailyGoodsPrices(attach.AllowDataUpload, serverNow, serverLocation, region, captureuid.GetCachedUID(), *data); err != nil {
 		log.Warn().
 			Err(err).
 			Str("component", "autostockpile").
@@ -164,6 +165,23 @@ func (a *SelectItemAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) bool 
 			return false
 		}
 		return true
+	}
+
+	if isSecondPageOnlyID(*data, selection.ProductID) {
+		log.Info().
+			Str("component", "autostockpile").
+			Str("product_id", selection.ProductID).
+			Str("product_name", selection.ProductName).
+			Msg("selected goods only on second page, swipe shelf down before click")
+		if swipeErr := swipeShelfDown(ctx); swipeErr != nil {
+			log.Error().
+				Err(swipeErr).
+				Str("component", "autostockpile").
+				Str("product_id", selection.ProductID).
+				Str("step", "shelf_swipe_down_before_click").
+				Msg("failed to reveal second-page-only goods before click")
+			return false
+		}
 	}
 
 	override, err := buildSelectionPipelineOverride(ctx, selection, quantityDecision)

@@ -2,19 +2,45 @@ package charactercontroller
 
 import (
 	"encoding/json"
-	"math"
 
-	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/control"
 	"github.com/MaaXYZ/maa-framework-go/v4"
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	screenW = 1280
+	screenH = 720
+)
+
+// Accumulated hover-cursor offset since last Alt reset (Win32 path).
+// Always restarting from screen center would reverse-delta and bounce the camera.
+var cursorDX, cursorDY int
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
 func rotateView(ctx *maa.Context, dx, dy int) {
-	cx, cy := 1280/2, 720/2
+	cx, cy := screenW/2, screenH/2
+	if absInt(cursorDX) > screenW/4 || absInt(cursorDY) > screenH/4 {
+		ctx.RunAction("__CharacterControllerDeltaAltKeyDownAction",
+			maa.Rect{0, 0, 0, 0}, "", nil)
+		ctx.RunAction("__CharacterControllerDeltaClickCenterAction",
+			maa.Rect{0, 0, 0, 0}, "", nil)
+		ctx.RunAction("__CharacterControllerDeltaAltKeyUpAction",
+			maa.Rect{0, 0, 0, 0}, "", nil)
+		cursorDX, cursorDY = 0, 0
+	}
+
+	fromX, fromY := cx+cursorDX, cy+cursorDY
 	override := map[string]any{
 		"__CharacterControllerDeltaSwipeAction": map[string]any{
-			"begin": maa.Rect{cx, cy, 4, 4},
-			"end":   maa.Rect{cx + dx, cy + dy, 4, 4},
+			"begin": maa.Rect{fromX, fromY, 1, 1},
+			"end":   maa.Rect{fromX + dx, fromY + dy, 1, 1},
+			// wlroots resource remaps this node to RelativeMove; keep dx/dy for that path.
 			"custom_action_param": map[string]any{
 				"dx": dx,
 				"dy": dy,
@@ -23,20 +49,18 @@ func rotateView(ctx *maa.Context, dx, dy int) {
 	}
 	ctx.RunAction("__CharacterControllerDeltaSwipeAction",
 		maa.Rect{0, 0, 0, 0}, "", override)
-	ctx.RunAction("__CharacterControllerDeltaAltKeyDownAction",
-		maa.Rect{0, 0, 0, 0}, "", nil)
-	ctx.RunAction("__CharacterControllerDeltaClickCenterAction",
-		maa.Rect{0, 0, 0, 0}, "", nil)
-	ctx.RunAction("__CharacterControllerDeltaAltKeyUpAction",
-		maa.Rect{0, 0, 0, 0}, "", nil)
+	cursorDX += dx
+	cursorDY += dy
 }
 
 type characterControllerRelativeMoveParam struct {
-	Dx int `json:"dx"`
-	Dy int `json:"dy"`
+	Dx    int   `json:"dx"`
+	Dy    int   `json:"dy"`
+	Begin []int `json:"begin"`
 }
 
-// dx/dy are compensated by control.WlrootsRelativeMoveScale
+// When "begin" is specified, dx/dy are computed from begin to arg.Box
+// (resolved from pipeline "target") instead of the explicit dx/dy fields.
 type CharacterControllerRelativeMoveAction struct{}
 
 func (a *CharacterControllerRelativeMoveAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) bool {
@@ -50,9 +74,22 @@ func (a *CharacterControllerRelativeMoveAction) Run(ctx *maa.Context, arg *maa.C
 		return false
 	}
 
-	scaledDX := int32(math.Round(float64(params.Dx) * control.WlrootsRelativeMoveScale))
-	scaledDY := int32(math.Round(float64(params.Dy) * control.WlrootsRelativeMoveScale))
-	ctx.GetTasker().GetController().PostRelativeMove(scaledDX, scaledDY).Wait()
+	dx := params.Dx
+	dy := params.Dy
+
+	if len(params.Begin) >= 2 {
+		if arg.RecognitionDetail == nil || !arg.RecognitionDetail.Hit {
+			log.Debug().
+				Str("component", "CharacterController").
+				Str("action", "CharacterControllerRelativeMove").
+				Msg("target recognition not hit, skipping relative move")
+			return true
+		}
+		dx = arg.Box.X() - params.Begin[0]
+		dy = arg.Box.Y() - params.Begin[1]
+	}
+
+	ctx.GetTasker().GetController().PostRelativeMove(int32(dx), int32(dy)).Wait()
 	return true
 }
 
@@ -122,13 +159,22 @@ func (a *CharacterControllerForwardAxisAction) Run(ctx *maa.Context, arg *maa.Cu
 	return true
 }
 
-func moveToTarget(ctx *maa.Context, arg *maa.CustomActionArg, alignThreshold int) bool {
+func moveToTarget(ctx *maa.Context, arg *maa.CustomActionArg, alignThreshold int, farTargetWidth *int) bool {
 	if arg.RecognitionDetail == nil || !arg.RecognitionDetail.Hit {
 		log.Debug().Msg("recognition detail missing or not a hit")
 		return false
 	}
 
 	box := arg.Box
+	if farTargetWidth != nil && box.Width() < *farTargetWidth {
+		moveAxis(ctx, 200)
+		log.Debug().
+			Int("width", box.Width()).
+			Int("far_target_width", *farTargetWidth).
+			Msg("target too far — moving forward")
+		return true
+	}
+
 	targetCenterX := box.X() + box.Width()/2
 	targetCenterY := box.Y() + box.Height()/2
 	screenCenterX := 1280 / 2
@@ -174,6 +220,7 @@ func (a *CharacterMoveToTargetAction) Run(ctx *maa.Context, arg *maa.CustomActio
 	targetNotFoundCounter = 0
 	var params struct {
 		AlignThreshold *int `json:"align_threshold"`
+		FarTargetWidth *int `json:"far_target_width"`
 	}
 	if err := json.Unmarshal([]byte(arg.CustomActionParam), &params); err != nil {
 		log.Error().
@@ -187,7 +234,7 @@ func (a *CharacterMoveToTargetAction) Run(ctx *maa.Context, arg *maa.CustomActio
 	if params.AlignThreshold != nil {
 		alignThreshold = *params.AlignThreshold
 	}
-	return moveToTarget(ctx, arg, alignThreshold)
+	return moveToTarget(ctx, arg, alignThreshold, params.FarTargetWidth)
 }
 
 type CharacterMoveToTargetNotFoundAction struct{}
@@ -204,7 +251,7 @@ var (
 
 func (a *CharacterMoveToTargetNotFoundAction) Run(ctx *maa.Context, arg *maa.CustomActionArg) bool {
 	targetNotFoundCounter++
-	if targetNotFoundCounter > 15 {
+	if targetNotFoundCounter > 30 {
 		log.Warn().
 			Int("counter", targetNotFoundCounter).
 			Str("component", "CharacterController").

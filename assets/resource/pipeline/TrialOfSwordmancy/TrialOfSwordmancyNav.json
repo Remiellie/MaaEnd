@@ -1,0 +1,219 @@
+{
+    "TrialOfSwordmancyEnterTrialMenu": {
+        "desc": "点击进入演算",
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    840,
+                    448,
+                    30,
+                    30
+                ],
+                "template": "TrialOfSwordmancy/TrialTrigger1.png"
+            },
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    840,
+                    448,
+                    30,
+                    30
+                ],
+                "template": "TrialOfSwordmancy/TrialTrigger2.png"
+            }
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "AutoAltClickAction",
+        "post_delay": 0,
+        "next": [
+            "TrialOfSwordmancyEnterTrialMenuSuccess"
+        ]
+    },
+    "TrialOfSwordmancyEnterTrialMenuSuccess": {
+        "desc": "成功进入演算菜单",
+        "recognition": "Or",
+        "any_of": [
+            "TrialOfSwordmancyDrawCard",
+            "TrialOfSwordmancyEnemyCard5"
+        ],
+        "pre_wait_freezes": {
+            "time": 100,
+            "target": [
+                // 等待抽牌按钮的骰子转动完毕
+                1081,
+                510,
+                68,
+                60
+            ]
+        },
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "TrialOfSwordmancyGotoTrialArenaStart": {
+        "desc": "前往演武入口（子任务入口）",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SubTask",
+        "custom_action_param": {
+            "sub": [
+                "SceneEnterWorldWulingSwordVaultDale2"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "TrialOfSwordmancyInSwordVaultDale"
+        ]
+    },
+    "TrialOfSwordmancyGotoTrialArenaExit": {
+        "desc": "已到达演武入口，准备点击进入演算",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "TrialOfSwordmancyEnterTrialMenu"
+        ]
+    },
+    "TrialOfSwordmancyInSwordVaultDale": {
+        "desc": "确认在藏剑谷内",
+        "recognition": "Custom",
+        "custom_recognition": "MapLocateAssertLocation",
+        "custom_recognition_param": {
+            "zone_id": "Wuling_Base",
+            "target": [
+                1829.69,
+                2861.39,
+                20.01,
+                18.34
+            ]
+        },
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "TrialOfSwordmancyGotoTrialArenaCpp"
+        ]
+    },
+    "TrialOfSwordmancyGotoTrialArenaCpp": {
+        "desc": "使用MapNavigator导航前往目标地点",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MapNavigateAction",
+        "custom_action_param": {
+            "arrival_timeout": 45000,
+            "path": [
+                {
+                    "action": "ZONE",
+                    "zone_id": "Wuling_Base"
+                },
+                [
+                    1834.41,
+                    2872.32
+                ],
+                [
+                    1836.64,
+                    2871.99
+                ],
+                [
+                    1838.54,
+                    2871.66
+                ],
+                [
+                    1840.43,
+                    2870.98
+                ],
+                [
+                    1841,
+                    2869.11
+                ],
+                [
+                    1840.83,
+                    2867.23
+                ],
+                [
+                    1840.52,
+                    2865.28
+                ],
+                [
+                    1840.53,
+                    2863.13
+                ],
+                [
+                    1841.85,
+                    2862.03
+                ],
+                [
+                    1843.56,
+                    2861.87
+                ],
+                [
+                    1845.16,
+                    2861.76
+                ],
+                [
+                    1847.05,
+                    2862.03
+                ],
+                [
+                    1849.15,
+                    2862.05
+                ],
+                [
+                    1850.95,
+                    2862.23
+                ],
+                [
+                    1852.54,
+                    2861.93
+                ],
+                [
+                    1854.63,
+                    2861.61
+                ],
+                [
+                    1856.42,
+                    2861.54
+                ],
+                [
+                    1857.87,
+                    2860.06
+                ],
+                [
+                    1858.56,
+                    2858.2
+                ],
+                [
+                    1859.14,
+                    2856.37
+                ],
+                [
+                    1859.84,
+                    2854.7
+                ],
+                [
+                    1860.54,
+                    2852.97
+                ],
+                [
+                    1861.33,
+                    2851.29
+                ],
+                [
+                    1862.18,
+                    2849.76
+                ],
+                [
+                    1863.24,
+                    2845.55
+                ]
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "TrialOfSwordmancyGotoTrialArenaExit"
+        ]
+    }
+}

@@ -1,7 +1,262 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Custom Recognition Schema",
     "description": "Schema for custom recognitions in MaaFramework pipeline",
-    "type": "object",
-    "additionalProperties": true
+    "properties": {
+        "custom_recognition": {
+            "enum": [
+                "AutoFightEntryRecognition",
+                "AeroSalvageGridRecognition",
+                "AeroSalvageInitialStateRecognition",
+                "AutoSellPriceCompareRecognition",
+                "AutoSellScanItemRecognition",
+                "AutoStockpile.Recognition",
+                "EssenceFilterAfterBattleNthRecognition",
+                "EssenceGridAdvanceRecognition",
+                "EssenceGridPendingRecognition",
+                "ExpendableRecognition",
+                "ExpressionRecognition",
+                "ImageCheckNotPassedRecognition",
+                "ListCompleteRecognition",
+                "MapLocateAssertLocation",
+                "MapTrackerAssertLocation",
+                "MapTrackerAssertLocationCompatible",
+                "MapTrackerBigMapFindImage",
+                "MapTrackerBigMapInfer",
+                "MapTrackerInfer",
+                "PuzzleRecognition",
+                "ReceptionRoomExchangeCountdownWithinThresholdRecognition",
+                "ReceptionRoomWaitExchangeKeepAliveDueRecognition",
+                "ScheduleRecognition",
+                "SellProductCurrentBestOperator",
+                "SellProductCurrentOperatorUncached",
+                "SellProductOperatorCacheReady",
+                "SellProductOperatorListBottom",
+                "SellProductOperatorScanOutcome",
+                "SellProductPriorityItem",
+                "SellProductSelectBestOperator",
+                "TrialOfSwordmancy.Recognize",
+                "TrialOfSwordmancy.RecognizeAband",
+                "WeaponInventoryScanRecognition",
+                "SeizeDeliveryJobsFindTargetRecognition",
+                "SeizeDeliveryJobsScanTargetRecognition",
+                "autoEcoFarmCalculateSwipeTarget",
+                "autoEcoFarmFindNearestRecognitionResult"
+            ]
+        }
+    },
+    "allOf": [
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": {
+                    "custom_recognition": {
+                        "enum": [
+                            "AeroSalvageGridRecognition",
+                            "AeroSalvageInitialStateRecognition"
+                        ]
+                    }
+                }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "grid_roi",
+                            "center_roi"
+                        ],
+                        "properties": {
+                            "grid_roi": {
+                                "description": "Grid detection rectangle [x, y, width, height].",
+                                "type": "array",
+                                "items": { "type": "integer" },
+                                "minItems": 4,
+                                "maxItems": 4
+                            },
+                            "center_roi": {
+                                "description": "Center-point detection rectangle [x, y, width, height].",
+                                "type": "array",
+                                "items": { "type": "integer" },
+                                "minItems": 4,
+                                "maxItems": 4
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "ListCompleteRecognition" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [ "node" ],
+                        "properties": {
+                            "node": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Node",
+                                "description": "OCR node name, or an And node name whose native box_index target must be OCR. Compared across runs via attach.last_text on the current Custom recognition node."
+                            },
+                            "retry": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "default": 0,
+                                "title": "Retry",
+                                "description": "After OCR fingerprint equals attach.last_text, keep returning true this many times (incrementing attach.unchanged_count) before treating the list as complete. Default 0 means no retry: first unchanged hit returns false."
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "ExpendableRecognition" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [ "candidate" ],
+                        "properties": {
+                            "candidate": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Candidate",
+                                "description": "OCR or And (box_index -> text OCR). That named OCR is patched with visited blacklist. Hit box is returned for Click."
+                            },
+                            "visited_node": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Visited Node",
+                                "description": "Optional. Node whose attach.visited is used as the shared blacklist store. Defaults to the current Custom recognition node."
+                            },
+                            "key_regex": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Key Regex",
+                                "description": "Optional. Regex applied to OCR text to derive the visited key (capture group 1 if present, otherwise the full match; fall back to raw text on no match). Without it, store/exclude the raw OCR string exactly. With it, the blacklist also tolerates non-digit OCR tail noise after the key. Game-specific truncation (e.g. remark cut at first ')', normal name cut at '#UID') belongs in Pipeline, not in this component."
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "MapTrackerAssertLocation" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": { "$ref": "./components/map_tracker.schema.json#/$defs/MapTrackerAssertLocationParam" }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "MapLocateAssertLocation" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [ "zone_id", "target" ],
+                        "properties": {
+                            "zone_id": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "target": {
+                                "type": "array",
+                                "items": {
+                                    "type": "number"
+                                },
+                                "minItems": 4,
+                                "maxItems": 4
+                            },
+                            "loc_threshold": {
+                                "type": "number"
+                            },
+                            "yolo_threshold": {
+                                "type": "number"
+                            },
+                            "force_global_search": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "MapTrackerInfer" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": { "$ref": "./components/map_tracker.schema.json#/$defs/MapTrackerInferParam" }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "MapTrackerBigMapInfer" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": { "$ref": "./components/map_tracker.schema.json#/$defs/MapTrackerBigMapInferParam" }
+                }
+            }
+        },
+        {
+            "if": {
+                "type": "object",
+                "required": [ "custom_recognition" ],
+                "properties": { "custom_recognition": { "const": "MapTrackerBigMapFindImage" } }
+            },
+            "then": {
+                "type": "object",
+                "required": [ "custom_recognition_param" ],
+                "properties": {
+                    "custom_recognition_param": { "$ref": "./components/map_tracker.schema.json#/$defs/MapTrackerBigMapFindImageParam" }
+                }
+            }
+        }
+    ]
 }

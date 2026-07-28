@@ -3,6 +3,7 @@ package aspectratio
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/i18n"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/maafocus"
 	"github.com/MaaXYZ/MaaEnd/agent/go-service/pkg/pienv"
+	"github.com/MaaXYZ/MaaEnd/agent/go-service/pretask/gamesetting"
 	"github.com/MaaXYZ/maa-framework-go/v4"
 	"github.com/rs/zerolog/log"
 )
@@ -25,6 +27,8 @@ const (
 
 // AspectRatioChecker checks if the device resolution is 16:9 before task execution
 type AspectRatioChecker struct{}
+
+type resolutionReader func() (int32, int32, error)
 
 // OnTaskerTask handles tasker task events
 func (c *AspectRatioChecker) OnTaskerTask(tasker *maa.Tasker, event maa.EventStatus, detail maa.TaskerTaskDetail) {
@@ -51,28 +55,8 @@ func (c *AspectRatioChecker) OnTaskerTask(tasker *maa.Tasker, event maa.EventSta
 		return
 	}
 
-	const maxRetries = 20
-	var width, height int32
-	var err error
-	for i := range maxRetries {
-		width, height, err = controller.GetResolution()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to get resolution")
-			return
-		}
-		if width > 100 && height > 100 {
-			break
-		}
-		log.Debug().
-			Int32("width", width).
-			Int32("height", height).
-			Int("attempt", i+1).
-			Msg("Resolution too small, window may not be ready yet, retrying...")
-		time.Sleep(time.Second)
-		controller.PostScreencap().Wait()
-	}
-
-	if width <= 100 || height <= 100 {
+	width, height, ok := readResolutionWithRetry(controller)
+	if !ok {
 		log.Error().
 			Int32("width", width).
 			Int32("height", height).
@@ -113,7 +97,7 @@ func (c *AspectRatioChecker) OnTaskerTask(tasker *maa.Tasker, event maa.EventSta
 	}
 
 	if isADBController {
-		requirement := exactResolutionRequirement()
+		requirement := i18n.T("tasker.aspect_ratio_warning.requirement_exact", targetWidth, targetHeight)
 		log.Debug().
 			Uint64("task_id", detail.TaskID).
 			Str("entry", detail.Entry).
@@ -161,37 +145,65 @@ func (c *AspectRatioChecker) OnTaskerTask(tasker *maa.Tasker, event maa.EventSta
 		return
 	}
 
-	requirement := aspectRatioRequirement()
+	aspectRatioOK, minResolutionOK, resolutionOK := isNonADBResolutionOK(width, height)
+
 	log.Debug().
 		Uint64("task_id", detail.TaskID).
 		Str("entry", detail.Entry).
 		Str("controller_name", pienv.ControllerName()).
 		Str("controller_type", controlType).
-		Str("requirement", "aspect_ratio").
-		Str("target_resolution", requirement).
-		Str("mode", "aspect_ratio_only").
+		Str("requirement", "aspect_ratio_min_resolution").
+		Str("mode", "aspect_ratio_min_resolution").
 		Int32("width", width).
 		Int32("height", height).
+		Int("target_width", targetWidth).
+		Int("target_height", targetHeight).
+		Bool("aspect_ratio_ok", aspectRatioOK).
+		Bool("min_resolution_ok", minResolutionOK).
 		Float64("target_ratio", targetRatio).
-		Msg("Using aspect ratio check for non-ADB controller")
+		Msg("Using aspect ratio and minimum resolution check for non-ADB controller")
 
-	if !isAspectRatio16x9(int(width), int(height)) {
+	if !resolutionOK {
+		recheckedWidth, recheckedHeight, recheckedOK := trySwitchFullscreenToWindowedAndRecheck(controller, detail, width, height)
+		if recheckedOK {
+			return
+		}
+		width = recheckedWidth
+		height = recheckedHeight
+		aspectRatioOK, minResolutionOK, _ = isNonADBResolutionOK(width, height)
 		actualRatio := calculateAspectRatio(int(width), int(height))
 		log.Error().
 			Uint64("task_id", detail.TaskID).
 			Str("entry", detail.Entry).
 			Str("controller_name", pienv.ControllerName()).
 			Str("controller_type", controlType).
-			Str("requirement", "aspect_ratio").
-			Str("target_resolution", requirement).
+			Str("requirement", "aspect_ratio_min_resolution").
 			Bool("stop_task", true).
 			Int32("width", width).
 			Int32("height", height).
+			Int("target_width", targetWidth).
+			Int("target_height", targetHeight).
+			Bool("aspect_ratio_ok", aspectRatioOK).
+			Bool("min_resolution_ok", minResolutionOK).
 			Float64("actual_ratio", actualRatio).
 			Float64("target_ratio", targetRatio).
-			Str("mode", "aspect_ratio_only").
+			Str("mode", "aspect_ratio_min_resolution").
 			Msg("resolution check failed")
-		c.stopWithWarning(tasker, controllerDisplay, int(width), int(height), requirement)
+		fullScreen, _ := gamesetting.GetVideoFullScreen()
+		if fullScreen == 1 {
+			c.stopWithWarning(tasker, controllerDisplay, int(width), int(height), i18n.T("tasker.aspect_ratio_warning.full_screen_illegal"))
+		} else if runtime.GOOS == "windows" {
+			registryWidth, wErr := gamesetting.GetVideoResolutionWidth()
+			registryHeight, hErr := gamesetting.GetVideoResolutionHeight()
+			if wErr == nil && hErr == nil && registryWidth > 0 && registryHeight > 0 &&
+				(int(width) != int(registryWidth) || int(height) != int(registryHeight)) {
+				c.stopWithWarning(tasker, controllerDisplay, int(width), int(height), i18n.T("tasker.aspect_ratio_warning.requirement_ratio_window_mismatch"))
+			} else {
+				c.stopWithWarning(tasker, controllerDisplay, int(width), int(height), i18n.T("tasker.aspect_ratio_warning.requirement_ratio"))
+			}
+		} else {
+			c.stopWithWarning(tasker, controllerDisplay, int(width), int(height), i18n.T("tasker.aspect_ratio_warning.requirement_ratio"))
+		}
 		return
 	}
 
@@ -200,17 +212,158 @@ func (c *AspectRatioChecker) OnTaskerTask(tasker *maa.Tasker, event maa.EventSta
 		Str("entry", detail.Entry).
 		Str("controller_name", pienv.ControllerName()).
 		Str("controller_type", controlType).
-		Str("requirement", "aspect_ratio").
-		Str("target_resolution", requirement).
+		Str("requirement", "aspect_ratio_min_resolution").
 		Int32("width", width).
 		Int32("height", height).
-		Str("mode", "aspect_ratio_only").
+		Int("target_width", targetWidth).
+		Int("target_height", targetHeight).
+		Bool("aspect_ratio_ok", aspectRatioOK).
+		Bool("min_resolution_ok", minResolutionOK).
+		Str("mode", "aspect_ratio_min_resolution").
 		Msg("resolution check passed")
 }
 
-func (c *AspectRatioChecker) stopWithWarning(tasker *maa.Tasker, controllerDisplay string, width, height int, requirement string) {
+func readResolutionWithRetry(controller *maa.Controller) (int32, int32, bool) {
+	const maxRetries = 20
+	var width, height int32
+	for i := 0; i < maxRetries; i++ {
+		var err error
+		width, height, err = controller.GetResolution()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get resolution")
+			return width, height, false
+		}
+		if width > 100 && height > 100 {
+			return width, height, true
+		}
+		log.Debug().
+			Int32("width", width).
+			Int32("height", height).
+			Int("attempt", i+1).
+			Msg("Resolution too small, window may not be ready yet, retrying...")
+		time.Sleep(time.Second)
+		controller.PostScreencap().Wait()
+	}
+	return width, height, false
+}
+
+func isNonADBResolutionOK(width, height int32) (bool, bool, bool) {
+	aspectRatioOK := isAspectRatio16x9(int(width), int(height))
+	minResolutionOK := isAtLeastTargetResolution(int(width), int(height))
+	return aspectRatioOK, minResolutionOK, aspectRatioOK && minResolutionOK
+}
+
+func trySwitchFullscreenToWindowedAndRecheck(controller *maa.Controller, detail maa.TaskerTaskDetail, width, height int32) (int32, int32, bool) {
+	if runtime.GOOS != "windows" {
+		log.Debug().
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Str("goos", runtime.GOOS).
+			Msg("Skip Alt+Enter outside Windows")
+		return width, height, false
+	}
+
+	fullScreen, err := gamesetting.GetVideoFullScreen()
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Msg("Failed to read fullscreen setting, skip Alt+Enter")
+		return width, height, false
+	}
+	if fullScreen != 1 {
+		log.Debug().
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Uint32("video_full_screen", fullScreen).
+			Msg("Game is not fullscreen, skip Alt+Enter")
+		return width, height, false
+	}
+
+	log.Info().
+		Uint64("task_id", detail.TaskID).
+		Str("entry", detail.Entry).
+		Int32("width", width).
+		Int32("height", height).
+		Msg("Game is fullscreen with invalid resolution, sending Alt+Enter to switch to windowed mode")
+
+	readResolution, err := sendAltEnterWindows(controller)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Msg("Failed to send Alt+Enter, skip resolution recheck")
+		return width, height, false
+	}
+	log.Debug().
+		Uint64("task_id", detail.TaskID).
+		Str("entry", detail.Entry).
+		Msg("Alt+Enter completed, waiting for fullscreen toggle to settle")
+	time.Sleep(500 * time.Millisecond)
+
+	return recheckResolutionAfterFullscreenToggle(readResolution, detail, width, height)
+}
+
+func recheckResolutionAfterFullscreenToggle(readResolution resolutionReader, detail maa.TaskerTaskDetail, oldWidth, oldHeight int32) (int32, int32, bool) {
+	width := oldWidth
+	height := oldHeight
+
+	if readResolution == nil {
+		log.Warn().
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Msg("Resolution reader is unavailable during Alt+Enter recheck")
+		return width, height, false
+	}
+
+	recheckedWidth, recheckedHeight, err := readResolution()
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Msg("Failed to get resolution during Alt+Enter recheck")
+		return width, height, false
+	}
+
+	width = recheckedWidth
+	height = recheckedHeight
+	aspectRatioOK, minResolutionOK, resolutionOK := isNonADBResolutionOK(width, height)
+	log.Debug().
+		Uint64("task_id", detail.TaskID).
+		Str("entry", detail.Entry).
+		Int32("width", width).
+		Int32("height", height).
+		Bool("aspect_ratio_ok", aspectRatioOK).
+		Bool("min_resolution_ok", minResolutionOK).
+		Msg("Rechecked resolution after Alt+Enter")
+
+	if resolutionOK {
+		log.Info().
+			Uint64("task_id", detail.TaskID).
+			Str("entry", detail.Entry).
+			Int32("width", width).
+			Int32("height", height).
+			Msg("Resolution check passed after Alt+Enter, continuing task")
+		return width, height, true
+	}
+
+	return width, height, false
+}
+
+func sendAltEnterWindows(controller *maa.Controller) (resolutionReader, error) {
+	return sendAltEnterWindowsImpl(controller)
+}
+
+var sendAltEnterWindowsImpl = func(*maa.Controller) (resolutionReader, error) {
+	return nil, fmt.Errorf("Alt+Enter is only supported on Windows")
+}
+
+func (c *AspectRatioChecker) stopWithWarning(tasker *maa.Tasker, controllerDisplay string, width, height int, followUpLines ...string) {
 	maafocus.PrintLargeContentTrimNewline(
-		i18n.RenderHTML("tasker.aspect_ratio_warning", buildWarningData(controllerDisplay, width, height, requirement)),
+		i18n.RenderHTML("tasker.aspect_ratio_warning", buildWarningData(controllerDisplay, width, height, followUpLines...)),
 	)
 	tasker.PostStop()
 }
@@ -219,10 +372,6 @@ func resolveControllerType(controller *maa.Controller) (string, string, error) {
 	if controlType := normalizeControllerType(pienv.ControllerType()); controlType != "" {
 		return controlType, "pi_env", nil
 	}
-	if controlType := normalizeControllerType(control.CachedControlType); controlType != "" {
-		return controlType, "cache", nil
-	}
-
 	controlType, err := control.GetControlType(controller)
 	if err != nil {
 		return "unknown", "controller_info", err
@@ -247,6 +396,19 @@ func isAspectRatio16x9(width, height int) bool {
 	return math.Abs(ratio-targetRatio) <= targetRatio*tolerance
 }
 
+func isAtLeastTargetResolution(width, height int) bool {
+	if width <= 0 || height <= 0 {
+		return false
+	}
+
+	longSide := max(width, height)
+	shortSide := min(width, height)
+	targetLongSide := max(targetWidth, targetHeight)
+	targetShortSide := min(targetWidth, targetHeight)
+
+	return longSide >= targetLongSide && shortSide >= targetShortSide
+}
+
 // calculateAspectRatio calculates the aspect ratio, always returning the larger/smaller ratio
 // This normalizes both landscape and portrait orientations
 func calculateAspectRatio(width, height int) float64 {
@@ -260,11 +422,17 @@ func calculateAspectRatio(width, height int) float64 {
 	return h / w
 }
 
-func buildWarningData(controllerDisplay string, width, height int, requirement string) map[string]any {
+func buildWarningData(controllerDisplay string, width, height int, followUpLines ...string) map[string]any {
+	lines := make([]string, 0, len(followUpLines))
+	for _, line := range followUpLines {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
 	return map[string]any{
 		"ControllerType":    controllerDisplay,
 		"CurrentResolution": fmt.Sprintf("%dx%d", width, height),
-		"Requirement":       requirement,
+		"FollowUpLines":     lines,
 	}
 }
 
@@ -306,12 +474,4 @@ func normalizeControllerType(controllerType string) string {
 	default:
 		return ""
 	}
-}
-
-func exactResolutionRequirement() string {
-	return i18n.T("tasker.aspect_ratio_warning.requirement_exact", targetWidth, targetHeight)
-}
-
-func aspectRatioRequirement() string {
-	return i18n.T("tasker.aspect_ratio_warning.requirement_ratio")
 }

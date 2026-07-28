@@ -1,5 +1,7 @@
 #include <chrono>
 
+#include <MaaUtils/Logger.h>
+
 #include "../utils.h"
 #include "MapNavigator/controller_info_utils.h"
 #include "controller_type_utils.h"
@@ -42,25 +44,6 @@ bool IsBlackScreen(const cv::Mat& image)
     return mean_luma[0] <= 12.0 && stddev_luma[0] <= 10.0 && dark_ratio >= 0.98;
 }
 
-class ScopedImageBuffer
-{
-public:
-    ScopedImageBuffer()
-        : buffer_(MaaImageBufferCreate())
-    {
-    }
-
-    ~ScopedImageBuffer() { MaaImageBufferDestroy(buffer_); }
-
-    ScopedImageBuffer(const ScopedImageBuffer&) = delete;
-    ScopedImageBuffer& operator=(const ScopedImageBuffer&) = delete;
-
-    MaaImageBuffer* Get() const { return buffer_; }
-
-private:
-    MaaImageBuffer* buffer_;
-};
-
 } // namespace
 
 PositionProvider::PositionProvider(MaaController* controller, std::shared_ptr<maplocator::MapLocator> locator)
@@ -68,6 +51,11 @@ PositionProvider::PositionProvider(MaaController* controller, std::shared_ptr<ma
     , locator_(std::move(locator))
     , uses_adb_minimap_roi_(IsAdbLikeControllerType(DetectControllerType(controller_)))
 {
+}
+
+void PositionProvider::SetFrameObserver(std::function<void(const cv::Mat&)> observer)
+{
+    frame_observer_ = std::move(observer);
 }
 
 bool PositionProvider::Capture(NaviPosition* out_pos, bool force_global_search, const std::string& expected_zone_id)
@@ -89,6 +77,9 @@ bool PositionProvider::Capture(NaviPosition* out_pos, bool force_global_search, 
 
     cv::Mat image = to_mat(buffer.Get());
     last_capture_was_black_screen_ = IsBlackScreen(image);
+    if (frame_observer_) {
+        frame_observer_(image);
+    }
     cv::Mat minimap;
     if (!maplocator::TryExtractMinimap(image, uses_adb_minimap_roi_, &minimap)) {
         return false;
@@ -99,6 +90,16 @@ bool PositionProvider::Capture(NaviPosition* out_pos, bool force_global_search, 
     options.expected_zone_id = expected_zone_id;
 
     const auto locate_result = locator_->locate(minimap, options);
+    const int status = static_cast<int>(locate_result.status);
+    if (locate_result.position) {
+        const auto& position = *locate_result.position;
+        LogInfo << "MapLocator" << VAR(status) << VAR(locate_result.debugMessage) << VAR(position.zoneId) << VAR(position.x)
+                << VAR(position.y) << VAR(position.score) << VAR(position.sliceIndex) << VAR(position.scale) << VAR(position.angle)
+                << VAR(position.latencyMs) << VAR(position.isHeld);
+    }
+    else {
+        LogInfo << "MapLocator" << VAR(status) << VAR(locate_result.debugMessage) << "position=null";
+    }
     if (locate_result.status != maplocator::LocateStatus::Success || !locate_result.position) {
         last_capture_was_held_ = false;
         held_fix_streak_ = 0;
@@ -113,7 +114,19 @@ bool PositionProvider::Capture(NaviPosition* out_pos, bool force_global_search, 
     out_pos->timestamp = capture_started_at;
     last_capture_was_held_ = locate_result.position->isHeld;
     held_fix_streak_ = last_capture_was_held_ ? (held_fix_streak_ + 1) : 0;
+
+    // Single chokepoint: every capture path (semantic nodes, the state machine, WaitForFix) funnels
+    // through here, and out_pos is always repopulated from the fresh locate result above before this
+    // runs, so the normalizer is applied exactly once per fix — double-transform is impossible.
+    if (position_normalizer_) {
+        position_normalizer_(*out_pos);
+    }
     return true;
+}
+
+void PositionProvider::SetPositionNormalizer(std::function<void(NaviPosition&)> normalizer)
+{
+    position_normalizer_ = std::move(normalizer);
 }
 
 bool PositionProvider::WaitForFix(

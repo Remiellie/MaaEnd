@@ -6,14 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 )
 
 const (
-	dailyStorageFileName     = "daily_storage.json"
-	maxDailyStorageDateCount = 60
-	maaEndDataDirEnvVar      = "MAAEND_DATA_DIR"
+	dailyStorageFileName     = "ElasticGoodsPrices.json"
+	maxDailyStorageDateCount = 120
 )
 
 var resolveDailyStoragePathFunc = resolveDailyStoragePath
@@ -28,6 +26,7 @@ type dailyStorageRecord struct {
 	Weekday    int         `json:"weekday"`
 	UTCTime    string      `json:"utc_time"`
 	Region     string      `json:"region"`
+	UID        string      `json:"uid"`
 	Goods      []GoodsItem `json:"goods"`
 }
 
@@ -43,9 +42,13 @@ func maaWeekday(weekday time.Weekday) int {
 	return int(weekday)
 }
 
-func storeDailyGoodsPrices(enabled bool, now time.Time, loc *time.Location, region string, data RecognitionData) error {
+func storeDailyGoodsPrices(enabled bool, now time.Time, loc *time.Location, region string, uid string, data RecognitionData) error {
 	if !enabled {
 		return nil
+	}
+
+	if uid == "" {
+		uid = "unknown"
 	}
 
 	serverDate, weekday := serverDateInfo(now, loc)
@@ -54,6 +57,7 @@ func storeDailyGoodsPrices(enabled bool, now time.Time, loc *time.Location, regi
 		Weekday:    weekday,
 		UTCTime:    now.UTC().Format(time.RFC3339),
 		Region:     region,
+		UID:        uid,
 		Goods:      cloneGoodsItems(data.Goods),
 	}
 
@@ -62,50 +66,7 @@ func storeDailyGoodsPrices(enabled bool, now time.Time, loc *time.Location, regi
 }
 
 func resolveDailyStoragePath() string {
-	return filepath.Join(resolveDailyStorageDataDir(), "AutoStockpile", dailyStorageFileName)
-}
-
-func resolveDailyStorageDataDir() string {
-	if dir := strings.TrimSpace(os.Getenv(maaEndDataDirEnvVar)); dir != "" {
-		return filepath.Clean(dir)
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		if dir := findExistingDataDirFromAncestors(cwd); dir != "" {
-			return dir
-		}
-	}
-
-	if exePath, err := os.Executable(); err == nil {
-		if dir := findExistingDataDirFromAncestors(filepath.Dir(exePath)); dir != "" {
-			return dir
-		}
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		return filepath.Join(cwd, "data")
-	}
-	return "data"
-}
-
-func findExistingDataDirFromAncestors(start string) string {
-	base := filepath.Clean(start)
-	for {
-		for _, candidate := range []string{
-			filepath.Join(base, "data"),
-			filepath.Join(base, "assets", "data"),
-		} {
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				return candidate
-			}
-		}
-
-		parent := filepath.Dir(base)
-		if parent == base {
-			return ""
-		}
-		base = parent
-	}
+	return filepath.Join("debug", "record", dailyStorageFileName)
 }
 
 func upsertDailyStorageRecord(path string, record dailyStorageRecord) error {
@@ -116,7 +77,7 @@ func upsertDailyStorageRecord(path string, record dailyStorageRecord) error {
 
 	replaced := false
 	for i := range storage.Records {
-		if storage.Records[i].ServerDate == record.ServerDate && storage.Records[i].Region == record.Region {
+		if storage.Records[i].ServerDate == record.ServerDate && storage.Records[i].Region == record.Region && storage.Records[i].UID == record.UID {
 			storage.Records[i] = record
 			replaced = true
 			break
@@ -127,7 +88,7 @@ func upsertDailyStorageRecord(path string, record dailyStorageRecord) error {
 	}
 
 	storage.Records = retainRecentDailyStorageDates(storage.Records, maxDailyStorageDateCount)
-	storage.SchemaVersion = 1
+	storage.SchemaVersion = 2
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("create daily storage dir: %w", err)
 	}
@@ -197,6 +158,16 @@ func readDailyStorageFile(path string) (dailyStorageFile, error) {
 	if err := json.Unmarshal(content, &storage); err != nil {
 		return dailyStorageFile{}, fmt.Errorf("parse daily storage: %w", err)
 	}
+
+	// Migrate old records: if schema_version < 2, normalize empty UID to "unknown".
+	if storage.SchemaVersion < 2 {
+		for i := range storage.Records {
+			if storage.Records[i].UID == "" {
+				storage.Records[i].UID = "unknown"
+			}
+		}
+	}
+
 	return storage, nil
 }
 
