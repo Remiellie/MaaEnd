@@ -8,6 +8,11 @@ import {parse} from "jsonc-parser";
 
 import {deliveryJobDepots, deliveryJobRegions} from "./model.mjs";
 
+const AUTO_DELIVERY_CONTROLLERS = [
+    "Win32-Front",
+    "Wlroots",
+];
+
 function readJsonc(path) {
     return parse(readFileSync(path, "utf8"));
 }
@@ -57,6 +62,13 @@ test("DeliveryJobs model has unique regions and depots", () => {
             );
         }
     }
+    assert.deepEqual(
+        deliveryJobDepots.filter((depot) => depot.AutoDeliverySupported).map((depot) => depot.Id),
+        [
+            "WulingCity",
+            "TestArea",
+        ],
+    );
 });
 
 test("DeliveryJobs generated region loops cover every depot in stable order", () => {
@@ -78,8 +90,11 @@ test("DeliveryJobs generated region loops cover every depot in stable order", ()
 test("DeliveryJobs generated depot nodes enter the shared transfer and cargo flows", () => {
     for (const depot of deliveryJobDepots) {
         const pipeline = readGeneratedPipeline("DeliveryJobs", "Depot", depot.RegionId, `${depot.Id}.json`);
+        assert.deepEqual(pipeline[`DeliveryJobsEnter${depot.Id}DeliveryJob`].anchor, {
+            DeliveryJobsExistingJobAction: "DeliveryJobsClickTransferJob",
+        });
         assert.deepEqual(pipeline[`DeliveryJobsEnter${depot.Id}DeliveryJob`].next, [
-            "DeliveryJobsClickTransferJob",
+            "[Anchor]DeliveryJobsExistingJobAction",
         ]);
         assert.equal(pipeline[`DeliveryJobsEnter${depot.Id}DeliveryJob`].max_hit, 1);
         assert.equal(pipeline[`DeliveryJobsEnter${depot.Id}Cargo`].max_hit, 1);
@@ -109,18 +124,12 @@ test("DeliveryJobs generated quote nodes compare the threshold and route the sel
             `DeliveryJobs${depot.Id}QuoteBelowMinimum`,
             "DeliveryJobsBidPriceRecognitionFailed",
         ]);
-        assert.deepEqual(
-            pipeline[`DeliveryJobs${depot.Id}QuoteAtLeastMinimum`].custom_recognition_param,
-            {
-                expression: "{DeliveryJobsSelectedBidPrice}>=119000",
-            },
-        );
-        assert.deepEqual(
-            pipeline[`DeliveryJobs${depot.Id}QuoteBelowMinimum`].custom_recognition_param,
-            {
-                expression: "{DeliveryJobsSelectedBidPrice}<119000",
-            },
-        );
+        assert.deepEqual(pipeline[`DeliveryJobs${depot.Id}QuoteAtLeastMinimum`].custom_recognition_param, {
+            expression: "{DeliveryJobsSelectedBidPrice}>=119000",
+        });
+        assert.deepEqual(pipeline[`DeliveryJobs${depot.Id}QuoteBelowMinimum`].custom_recognition_param, {
+            expression: "{DeliveryJobsSelectedBidPrice}<119000",
+        });
         assert.deepEqual(pipeline[`DeliveryJobs${depot.Id}QuoteAtLeastMinimum`].anchor, {
             DeliveryJobsQuoteAction: "DeliveryJobsQuoteTransferJob",
             DeliveryJobsGoToDepot: `DeliveryJobsReturnAndTransfer${depot.Id}`,
@@ -145,12 +154,14 @@ test("DeliveryJobs task registers region switches and the shared packing option"
     assert.deepEqual(task.task[0].option, [
         ...deliveryJobRegions.map((region) => region.Id),
         "PackCargoSelectItem",
+        "DeliveryJobsAutoDeliveryRiskAcknowledgement",
+        "DeliveryJobsAutoDeliveryPreferZipline",
     ]);
     assert.equal(task.option.DeliveryJobsAcceptJobOnly, undefined);
     assert.equal(task.option.DeliveryJobsPackCargoOnly, undefined);
 });
 
-test("DeliveryJobs task orders five independent modes for every depot", () => {
+test("DeliveryJobs task adds automatic delivery as an independent supported-depot mode", () => {
     const task = readGeneratedTask();
     for (const depot of deliveryJobDepots) {
         const {option} = getDepotModeContext(task, depot);
@@ -160,6 +171,11 @@ test("DeliveryJobs task orders five independent modes for every depot", () => {
             option.cases.map((mode) => mode.name),
             [
                 "Transfer",
+                ...(depot.AutoDeliverySupported
+                    ? [
+                          "AutoDelivery",
+                      ]
+                    : []),
                 "ByQuote",
                 "AcceptJobOnly",
                 "PackCargoOnly",
@@ -202,6 +218,7 @@ test("DeliveryJobs ordinary depot modes override delivery and cargo behavior", (
             "DeliveryJobsStopForOngoingDelivery",
         );
         assert.equal(byName.AcceptJobOnly.pipeline_override[cargoNode].anchor.DeliveryJobsGoToDepot, depot.DepotScene);
+        assert.equal(byName.AcceptJobOnly.option, undefined);
 
         assert.deepEqual(byName.Disabled.pipeline_override, {
             [deliveryNode]: {
@@ -211,6 +228,114 @@ test("DeliveryJobs ordinary depot modes override delivery and cargo behavior", (
                 enabled: false,
             },
         });
+    }
+});
+
+test("DeliveryJobs exposes automatic delivery for supported depots with controller-scoped safety options", () => {
+    const task = readGeneratedTask();
+    const autoDeliveryNodes = {
+        SeizeDeliveryJobsPostProcessingEntry: {
+            enabled: true,
+        },
+        SeizeDeliveryJobsPrepareFetchGoods: {
+            enabled: true,
+        },
+        SeizeDeliveryJobsPostDepartureEntry: {
+            enabled: true,
+        },
+    };
+
+    for (const depot of deliveryJobDepots) {
+        const {byName} = getDepotModeContext(task, depot);
+        if (!depot.AutoDeliverySupported) {
+            assert.equal(byName.AutoDelivery, undefined);
+            continue;
+        }
+
+        const ordinaryAutoOverride = byName.AutoDelivery.pipeline_override;
+        const contexts = [
+            {
+                autoOverride: ordinaryAutoOverride,
+                comparison: "",
+                bidAction: "DeliveryJobsRedistributionBidNextStep",
+            },
+            {
+                autoOverride: task.option[`DeliveryJobsAtLeastMinimumQuoteAction${depot.Id}`].cases.find(
+                    (item) => item.name === "AutoDelivery",
+                ).pipeline_override,
+                comparison: "AtLeastMinimum",
+                bidAction: `DeliveryJobsDecide${depot.Id}Quote`,
+            },
+            {
+                autoOverride: task.option[`DeliveryJobsBelowMinimumQuoteAction${depot.Id}`].cases.find(
+                    (item) => item.name === "AutoDelivery",
+                ).pipeline_override,
+                comparison: "BelowMinimum",
+                bidAction: `DeliveryJobsDecide${depot.Id}Quote`,
+            },
+        ];
+
+        for (const {autoOverride, comparison, bidAction} of contexts) {
+            const deliveryNode = `DeliveryJobsEnter${depot.Id}DeliveryJob`;
+            const cargoNode = `DeliveryJobsEnter${depot.Id}Cargo`;
+            assert.deepEqual(autoOverride[deliveryNode], {
+                enabled: true,
+                anchor: {
+                    DeliveryJobsExistingJobAction: "DeliveryJobsAutoDeliveryEntry",
+                },
+            });
+            assert.deepEqual(autoOverride[cargoNode].anchor, {
+                DeliveryJobsSelectItemToFill: `DeliveryJobsSelectItemToFill${depot.RegionId}`,
+                DeliveryJobsRedistributionBidAction: bidAction,
+                DeliveryJobsOngoingDeliveryAction: "DeliveryJobsAutoDeliveryEntry",
+                DeliveryJobsGoToDepot: "DeliveryJobsAutoDeliveryEntry",
+            });
+            for (const [
+                node,
+                expected,
+            ] of Object.entries(autoDeliveryNodes)) {
+                assert.deepEqual(autoOverride[node], expected);
+            }
+            if (comparison) {
+                assert.deepEqual(autoOverride[`DeliveryJobs${depot.Id}Quote${comparison}`].anchor, {
+                    DeliveryJobsQuoteAction: "DeliveryJobsQuoteAcceptJobOnly",
+                    DeliveryJobsGoToDepot: "DeliveryJobsAutoDeliveryEntry",
+                });
+            }
+        }
+    }
+
+    assert.deepEqual(task.option.DeliveryJobsAutoDeliveryRiskAcknowledgement.controller, AUTO_DELIVERY_CONTROLLERS);
+    assert.equal(task.option.DeliveryJobsAutoDeliveryRiskAcknowledgement.default_case, "No");
+    assert.deepEqual(
+        task.option.DeliveryJobsAutoDeliveryRiskAcknowledgement.cases.map((item) => item.pipeline_override),
+        [
+            {
+                DeliveryJobsAutoDeliveryGuard: {
+                    enabled: true,
+                },
+            },
+            {
+                DeliveryJobsAutoDeliveryGuard: {
+                    enabled: false,
+                },
+            },
+        ],
+    );
+    assert.deepEqual(task.option.DeliveryJobsAutoDeliveryPreferZipline.controller, AUTO_DELIVERY_CONTROLLERS);
+    assert.deepEqual(
+        task.option.DeliveryJobsAutoDeliveryPreferZipline.cases.map(
+            (item) => item.pipeline_override.SeizeDeliveryJobsRunDeparture.custom_action_param.zipline_policy,
+        ),
+        [
+            "Lazy",
+            "Active",
+        ],
+    );
+    for (const depot of deliveryJobDepots) {
+        assert.equal(task.option[`DeliveryJobsPostAcceptAction${depot.Id}`], undefined);
+        assert.equal(task.option[`DeliveryJobsAtLeastMinimumPostAcceptAction${depot.Id}`], undefined);
+        assert.equal(task.option[`DeliveryJobsBelowMinimumPostAcceptAction${depot.Id}`], undefined);
     }
 });
 
@@ -282,27 +407,42 @@ test("DeliveryJobs quote branches share actions with branch-specific defaults", 
                 quoteAction.cases.map((mode) => mode.name),
                 [
                     "Transfer",
+                    ...(depot.AutoDeliverySupported
+                        ? [
+                              "AutoDelivery",
+                          ]
+                        : []),
                     "AcceptJobOnly",
                     "DoNotAccept",
                 ],
             );
+            assert.equal(quoteAction.cases.find((mode) => mode.name === "AcceptJobOnly").option, undefined);
             const comparisonNode = `DeliveryJobs${depot.Id}Quote${comparison}`;
+            const expectedAnchors = [
+                {
+                    DeliveryJobsQuoteAction: "DeliveryJobsQuoteTransferJob",
+                    DeliveryJobsGoToDepot: `DeliveryJobsReturnAndTransfer${depot.Id}`,
+                },
+                ...(depot.AutoDeliverySupported
+                    ? [
+                          {
+                              DeliveryJobsQuoteAction: "DeliveryJobsQuoteAcceptJobOnly",
+                              DeliveryJobsGoToDepot: "DeliveryJobsAutoDeliveryEntry",
+                          },
+                      ]
+                    : []),
+                {
+                    DeliveryJobsQuoteAction: "DeliveryJobsQuoteAcceptJobOnly",
+                    DeliveryJobsGoToDepot: depot.DepotScene,
+                },
+                {
+                    DeliveryJobsQuoteAction: "DeliveryJobsQuoteDoNotAccept",
+                    DeliveryJobsGoToDepot: depot.DepotScene,
+                },
+            ];
             assert.deepEqual(
                 quoteAction.cases.map((mode) => mode.pipeline_override[comparisonNode].anchor),
-                [
-                    {
-                        DeliveryJobsQuoteAction: "DeliveryJobsQuoteTransferJob",
-                        DeliveryJobsGoToDepot: `DeliveryJobsReturnAndTransfer${depot.Id}`,
-                    },
-                    {
-                        DeliveryJobsQuoteAction: "DeliveryJobsQuoteAcceptJobOnly",
-                        DeliveryJobsGoToDepot: depot.DepotScene,
-                    },
-                    {
-                        DeliveryJobsQuoteAction: "DeliveryJobsQuoteDoNotAccept",
-                        DeliveryJobsGoToDepot: depot.DepotScene,
-                    },
-                ],
+                expectedAnchors,
             );
         }
     }
@@ -311,31 +451,45 @@ test("DeliveryJobs quote branches share actions with branch-specific defaults", 
 test("DeliveryJobs shared bid page locates the selected quote", () => {
     const pipeline = readGeneratedPipeline("DeliveryJobs", "PackCargo.json");
     const adbPipeline = readAdbPipeline("DeliveryJobs", "PackCargo.json");
-    assert.deepEqual(pipeline.DeliveryJobsSelectedBidLocationIcon.roi, [
-        970,
-        132,
-        223,
-        106,
-    ]);
+    assert.deepEqual(
+        pipeline.DeliveryJobsSelectedBidLocationIcon.roi,
+        [
+            970,
+            132,
+            223,
+            106,
+        ],
+    );
     assert.equal(pipeline.DeliveryJobsSelectedBidLocationIcon.template, "DeliveryJobs/LocationIcon.png");
     assert.ok(existsSync(new URL("../../../assets/resource/image/DeliveryJobs/LocationIcon.png", import.meta.url)));
     assert.ok(existsSync(new URL("../../../assets/resource_adb/image/DeliveryJobs/LocationIcon.png", import.meta.url)));
     assert.equal(pipeline.DeliveryJobsSelectedBidPriceOCR.roi, "DeliveryJobsSelectedBidLocationIcon");
-    assert.deepEqual(pipeline.DeliveryJobsSelectedBidPriceOCR.roi_offset, [
-        137,
-        16,
-        28,
-        -2,
-    ]);
-    assert.deepEqual(adbPipeline.DeliveryJobsSelectedBidPriceOCR.roi_offset, [
-        170,
-        20,
-        35,
-        -3,
-    ]);
+    assert.deepEqual(
+        pipeline.DeliveryJobsSelectedBidPriceOCR.roi_offset,
+        [
+            137,
+            16,
+            28,
+            -2,
+        ],
+    );
+    assert.deepEqual(
+        adbPipeline.DeliveryJobsSelectedBidPriceOCR.roi_offset,
+        [
+            170,
+            20,
+            35,
+            -3,
+        ],
+    );
     assert.equal(pipeline.DeliveryJobsSelectedBidPriceOCR.only_rec, true);
     assert.deepEqual(pipeline.DeliveryJobsSelectedBidPriceOCR.expected, ["\\d+(?:[.,]\\d+)?"]);
-    assert.deepEqual(pipeline.DeliveryJobsSelectedBidPriceOCR.replace, [["方", "万"]]);
+    assert.deepEqual(pipeline.DeliveryJobsSelectedBidPriceOCR.replace, [
+        [
+            "方",
+            "万",
+        ],
+    ]);
 });
 
 test("DeliveryJobs shared bid page dispatches through common quote actions", () => {
@@ -365,7 +519,42 @@ test("DeliveryJobs shared bid page dispatches through common quote actions", () 
     ]);
 });
 
-test("DeliveryJobs stops only for an ongoing delivery or quote recognition failure", () => {
+test("DeliveryJobs automatic delivery adapter returns on success and stops on failure", () => {
+    const pipeline = readGeneratedPipeline("DeliveryJobs", "AutoDelivery.json");
+    assert.deepEqual(pipeline.DeliveryJobsAutoDeliveryEntry.anchor, {
+        SeizeDeliveryJobsAfterDelivery: "DeliveryJobsAutoDeliverySubTaskDone",
+    });
+    assert.deepEqual(pipeline.DeliveryJobsAutoDeliveryEntry.next, [
+        "DeliveryJobsAutoDeliveryGuard",
+        "DeliveryJobsAutoDeliveryRun",
+    ]);
+    assert.deepEqual(pipeline.DeliveryJobsAutoDeliveryRun.custom_action_param, {
+        sub: [
+            "SeizeDeliveryJobsPostProcessingEntry",
+        ],
+        continue: false,
+        strict: true,
+    });
+    assert.deepEqual(pipeline.DeliveryJobsAutoDeliveryRun.next, [
+        "DeliveryJobsAutoDeliveryDone",
+    ]);
+    assert.deepEqual(pipeline.DeliveryJobsAutoDeliveryRun.on_error, [
+        "DeliveryJobsAutoDeliveryFailed",
+    ]);
+    assert.equal(pipeline.DeliveryJobsAutoDeliveryGuard.action, "StopTask");
+    assert.equal(pipeline.DeliveryJobsAutoDeliveryGuard.enabled, true);
+    assert.equal(pipeline.DeliveryJobsAutoDeliveryFailed.action, "StopTask");
+
+    const seizeMain = readGeneratedPipeline("SeizeDeliveryJobs", "SeizeDeliveryJobs.json");
+    const seizeDeparture = readGeneratedPipeline("SeizeDeliveryJobs", "SeizeDeliveryJobsPostDeparture.json");
+    assert.equal(seizeMain.SeizeDeliveryJobsMain.anchor.SeizeDeliveryJobsAfterDelivery, "SeizeDeliveryJobsMain");
+    assert.deepEqual(seizeDeparture.SeizeDeliveryJobsCloseRewardDialogClick.next, [
+        "[Anchor]SeizeDeliveryJobsAfterDelivery",
+        "SeizeDeliveryJobsTaskEnd",
+    ]);
+});
+
+test("DeliveryJobs stops only at explicit safety boundaries", () => {
     const pipelineRoot = new URL("../../../assets/resource/pipeline/DeliveryJobs/", import.meta.url);
     const stopNodes = readdirSync(pipelineRoot, {recursive: true, withFileTypes: true})
         .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
@@ -385,6 +574,8 @@ test("DeliveryJobs stops only for an ongoing delivery or quote recognition failu
         })
         .sort();
     assert.deepEqual(stopNodes, [
+        "DeliveryJobsAutoDeliveryFailed",
+        "DeliveryJobsAutoDeliveryGuard",
         "DeliveryJobsBidPriceRecognitionFailed",
         "DeliveryJobsStopForOngoingDelivery",
     ]);

@@ -26,6 +26,7 @@ const DELIVERY_JOB_REGIONS = [
     {
         Id: "ValleyIV",
         GameId: "domain_1",
+        AutoDeliverySupported: false,
         RegionScene: "SceneEnterMenuRegionalDevelopmentValleyIV",
         DepotScene: "SceneEnterMenuRegionalDevelopmentValleyIVDepotNode",
         Depots: [
@@ -53,6 +54,7 @@ const DELIVERY_JOB_REGIONS = [
     {
         Id: "Wuling",
         GameId: "domain_2",
+        AutoDeliverySupported: true,
         RegionScene: "SceneEnterMenuRegionalDevelopmentWuling",
         DepotScene: "SceneEnterMenuRegionalDevelopmentWulingDepotNode",
         Depots: [
@@ -176,6 +178,7 @@ function buildDepot(regionSettings, depotSettings, configuredItems) {
         Name: depot.names.zh_cn,
         Expected: buildLocalizedExpected(depot.names, `仓储节点 ${depotSettings.GameId}`),
         RegionId: regionSettings.Id,
+        AutoDeliverySupported: regionSettings.AutoDeliverySupported,
         RegionScene: regionSettings.RegionScene,
         DepotScene: regionSettings.DepotScene,
     };
