@@ -80,9 +80,22 @@ test("DeliveryJobs generated region loops cover every depot in stable order", ()
             "DeliveryJobsLoop",
             "[JumpBack]SceneEnterMenuRegionalDevelopment",
         ]);
+        assert.equal(pipeline[`DeliveryJobs${region.Id}Loop`].max_hit, undefined);
         assert.deepEqual(pipeline[`DeliveryJobsIn${region.Id}LocalDepotNode`].all_of, [
             "InLocalDepotNode",
             `DeliveryJobsCheckLocalDepotNode${region.Depots[0]}Text`,
+        ]);
+    }
+});
+
+test("DeliveryJobs leaves locked depot handling to SceneManager", () => {
+    const corePipeline = readGeneratedPipeline("DeliveryJobs.json");
+    assert.equal(corePipeline.DeliveryJobsDepotLocked, undefined);
+
+    for (const region of deliveryJobRegions) {
+        const pipeline = readGeneratedPipeline("DeliveryJobs", "Region", `${region.Id}.json`);
+        assert.deepEqual(pipeline[`DeliveryJobs${region.Id}`].next, [
+            `DeliveryJobs${region.Id}Loop`,
         ]);
     }
 });
