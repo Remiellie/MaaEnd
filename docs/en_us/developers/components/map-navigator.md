@@ -97,6 +97,7 @@ Controls the character to move automatically along a given path and execute addi
 - `map_name`: String, empty by default. Used as the initial area context. If the `path` already contains a `ZONE` declaration node, this usually does not need to be filled additionally.
 - `arrival_timeout`: Positive integer, `60000` by default. Maximum allowed time in milliseconds for a single target point to remain unreached before being considered failed.
 - `sprint_threshold`: Positive real number, `25.0` by default. The "length of continuously runnable segment ahead" threshold used for automatic sprint judgment, rather than just looking at the straight-line distance to the current point.
+- `enable_bootstrap_navmesh`: Boolean, `true` by default. Whether the run may plan a navmesh route at startup to join the recorded path. Set it to `false` to skip that planning and walk the recorded points directly — the escape hatch for stacked terrain (platforms, catwalks, rooftops) where the startup plan detours badly.
 - Other unknown top-level fields: Currently ignored silently without causing errors.
 
 #### `path` Data Structure
